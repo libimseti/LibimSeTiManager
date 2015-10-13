@@ -5,6 +5,10 @@ VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibimSeTiManager", "LibimSeTiManager.csproj", "{F9CE5BD6-D2E9-44B5-B080-23A22D0B8590}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibimSeTi.Core", "..\LibimSeTi.Core\LibimSeTi.Core.csproj", "{174FB8B1-B2FC-4616-8334-D36CE6A89E4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Starksoft.Aspen", "..\Starksoft.Aspen\Starksoft.Aspen.csproj", "{5F228FCD-54F1-491D-93CE-3D768655FADC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{F9CE5BD6-D2E9-44B5-B080-23A22D0B8590}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F9CE5BD6-D2E9-44B5-B080-23A22D0B8590}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F9CE5BD6-D2E9-44B5-B080-23A22D0B8590}.Release|Any CPU.Build.0 = Release|Any CPU
+		{174FB8B1-B2FC-4616-8334-D36CE6A89E4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{174FB8B1-B2FC-4616-8334-D36CE6A89E4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{174FB8B1-B2FC-4616-8334-D36CE6A89E4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{174FB8B1-B2FC-4616-8334-D36CE6A89E4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F228FCD-54F1-491D-93CE-3D768655FADC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F228FCD-54F1-491D-93CE-3D768655FADC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F228FCD-54F1-491D-93CE-3D768655FADC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F228FCD-54F1-491D-93CE-3D768655FADC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
