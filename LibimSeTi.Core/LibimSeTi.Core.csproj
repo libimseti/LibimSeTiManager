@@ -45,7 +45,9 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="LibimSeTiConnector.cs" />
     <Compile Include="LibimSeTiSession.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Room.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Starksoft.Aspen\Starksoft.Aspen.csproj">

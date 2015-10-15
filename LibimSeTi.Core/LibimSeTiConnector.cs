@@ -6,23 +6,81 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace LibimSeTi.Core
 {
     public static class LibimSeTiConnector
     {
-        public static string Send(Action<HttpWebRequest> requestSetter, string requestContent,
-            Tuple<string, string>[] requestReplacements, Socks5ProxyClient socksClient)
+        private static readonly Socks5ProxyClient _socksClient
+            = new Socks5ProxyClient(Configuration.Instance.Socks5Server, Configuration.Instance.Socks5Port);
+
+        private static IPAddress _ipAddress;
+
+        public static async Task<string> Send(Action<HttpWebRequest> requestSetter, string requestContent,
+            Tuple<string, string>[] requestReplacements)
         {
             int port = 300;
 
-            HttpWebRequest request = CreateRequest(port);
+            return await Task.Run(() => {
 
-            requestSetter(request);
+                int attempt = 0;
+                string response;
+                do
+                {
+                    HttpWebRequest request = CreateRequest(port);
 
-            return Forward(request, Encoding.ASCII.GetBytes(requestContent), port, requestReplacements, socksClient);
+                    requestSetter(request);
+
+                    response = Forward(
+                        request,
+                        requestContent != null ? Encoding.ASCII.GetBytes(requestContent) : null,
+                        port,
+                        requestReplacements,
+                        _socksClient);
+
+                    attempt++;
+                } while (string.IsNullOrEmpty(response) && attempt < 5);
+
+                return response;
+            });
         }
+
+        public static IPAddress IP
+        {
+            get
+            {
+                if (_ipAddress == null)
+                {
+                    _ipAddress = GetPublicIP();
+
+                    Logger.Instance.Info(string.Format("IP: {0}", _ipAddress));
+                }
+
+                return _ipAddress;
+            }
+        }
+
+        private static IPAddress GetPublicIP()
+        {
+            TcpClient client = _socksClient.CreateConnection("checkip.dyndns.org", 80);
+
+            client.Client.Send(Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: checkip.dyndns.org\r\nConnection: Keep-Alive\r\n\r\n"));
+
+            string response = Encoding.ASCII.GetString(LibimSeTiConnector.ReadToEnd(client.Client));
+
+            var ipMatch = Regex.Match(response, "Current IP Address: (\\d+\\.\\d+\\.\\d+\\.\\d+)");
+
+            if (ipMatch.Success && ipMatch.Groups.Count == 2)
+            {
+                return IPAddress.Parse(ipMatch.Groups[1].Value);
+            }
+
+            return null;
+        }
+
 
         private static HttpWebRequest CreateRequest(int port)
         {
@@ -32,7 +90,11 @@ namespace LibimSeTi.Core
         private static string Forward(HttpWebRequest request, byte[] requestContent, int localPort,
             Tuple<string, string>[] requestReplacements, Socks5ProxyClient socksClient)
         {
-            request.ContentLength = requestContent.Length;
+            if (requestContent != null)
+            {
+                request.ContentLength = requestContent.Length;
+            }
+
             byte[] requestBytes = GetRequestContent(request, requestContent, localPort);
 
             string requestString = Encoding.ASCII.GetString(requestBytes);
@@ -58,10 +120,13 @@ namespace LibimSeTi.Core
             TcpListener listener = new TcpListener(IPAddress.Loopback, localPort);
             listener.Start();
 
-            Stream postStream = request.GetRequestStream();
-            postStream.Write(requestContent, 0, requestContent.Length);
-            postStream.Flush();
-            postStream.Close();
+            if (requestContent != null)
+            {
+                Stream postStream = request.GetRequestStream();
+                postStream.Write(requestContent, 0, requestContent.Length);
+                postStream.Flush();
+                postStream.Close();
+            }
 
             request.GetResponseAsync();
 
@@ -71,7 +136,7 @@ namespace LibimSeTi.Core
 
             listener.Stop();
 
-            if (!Encoding.ASCII.GetString(requestBytes).EndsWith(Encoding.ASCII.GetString(requestContent)))
+            if (requestContent != null && !Encoding.ASCII.GetString(requestBytes).EndsWith(Encoding.ASCII.GetString(requestContent)))
             {
                 requestBytes = requestBytes.Concat(requestContent).ToArray();
             }
@@ -115,14 +180,7 @@ namespace LibimSeTi.Core
         public static TcpClient ConnectToLibimSeTi(Socks5ProxyClient socksClient)
         {
             return socksClient.CreateConnection(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort);
-            return new TcpClient(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort);
-        }
-
-        public static TcpClient Connect(string host, int port)
-        {
-            Socks5ProxyClient socksClient = new Socks5ProxyClient(Configuration.Instance.Socks5Server, Configuration.Instance.Socks5Port);
-            return socksClient.CreateConnection(host, port);
-            return new TcpClient(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort);
+            //return new TcpClient(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort);
         }
 
         //public static string Request(string content)

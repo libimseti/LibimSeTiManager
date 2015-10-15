@@ -5,11 +5,15 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:LibimSeTiManager"
         mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525">
+        Title="MainWindow" Height="901.397" Width="961.034">
     <Grid>
-        <Button x:Name="button" Content="Button" HorizontalAlignment="Left" Margin="207,44,0,0" VerticalAlignment="Top" Width="75" Click="button_Click" Grid.Column="1"/>
-        <TextBox x:Name="logBox" Height="120" Margin="0,200,0,0" TextWrapping="Wrap" IsReadOnly="True" Text="{Binding Log}" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Width="507"/>
-
-
+        <Button x:Name="button" Content="Button" HorizontalAlignment="Left" Margin="10,27,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
+        <Menu x:Name="menu" HorizontalAlignment="Left" Height="27" VerticalAlignment="Top" Width="933">
+            <Button Content="Log" Click="ShowLog_Click"/>
+        </Menu>
+        <ScrollViewer Margin="10,86,10,0">
+            <TextBlock x:Name="roomContentBlock" HorizontalAlignment="Stretch" TextWrapping="Wrap" VerticalAlignment="Stretch" />
+        </ScrollViewer>
+        <Label x:Name="roomLabel" Padding="0" FontSize="15" FontWeight="Bold" Foreground="Green" HorizontalAlignment="Left" Margin="10,54,0,0" VerticalAlignment="Top" RenderTransformOrigin="-2.902,-0.37" Width="284" Height="27"/>
     </Grid>
 </Window>
