@@ -4,6 +4,7 @@ using System.Net;
 
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace LibimSeTi.Core
 {
@@ -13,15 +14,12 @@ namespace LibimSeTi.Core
         private string _logonToken;
         private string _hashId;
         private string _uid;
+        private Bot _bot;
 
-        public LibimSeTiSession(string username, string password)
+        public LibimSeTiSession(Bot bot)
         {
-            Username = username;
-            Password = password;
+            _bot = bot;
         }
-
-        public string Username { get; private set; }
-        public string Password { get; private set; }
 
         public bool IsLoggedOn
         {
@@ -33,7 +31,7 @@ namespace LibimSeTi.Core
 
         public async Task Logon()
         {
-            Logger.Instance.Info(string.Format("[{0}] Logging on", Username));
+            Logger.Instance.Info(string.Format("[{0}] Logging on", _bot.Username));
 
             string response = await LibimSeTiConnector.Send(
                 request =>
@@ -47,8 +45,8 @@ namespace LibimSeTi.Core
                 },
                 string.Format(
                 "e_login={0}&e_pass={1}&a=l&urlCrc=49a355a5b043ab8ccd316747cff2c735&targetUrl=http%3A%2F%2Fchat.libimseti.cz%2Findex.py%3F",
-                Username,
-                Password),
+                _bot.Username,
+                _bot.Password),
                 new[]
                 {
                 new Tuple<string, string>("POST / ", "POST /login "),
@@ -85,16 +83,16 @@ namespace LibimSeTi.Core
 
             if (!IsLoggedOn)
             {
-                Logger.Instance.Info(string.Format("[{0}] Logon failed", Username));
+                Logger.Instance.Info(string.Format("[{0}] Logon failed", _bot.Username));
                 throw new UnauthorizedAccessException();
             }
 
-            Logger.Instance.Info(string.Format("[{0}] Logged on", Username));
+            Logger.Instance.Info(string.Format("[{0}] Logged on", _bot.Username));
         }
 
         public async Task EnterRoom(Room room)
         {
-            Logger.Instance.Info(string.Format("[{0}] Entering room {1}", Username, room.Name));
+            Logger.Instance.Info(string.Format("[{0}] Entering room {1}", _bot.Username, room.Name));
 
             string response = await LibimSeTiConnector.Send(
                 request => {
@@ -118,16 +116,16 @@ namespace LibimSeTi.Core
 
             if (!response.Contains("&act=text&token="))
             {
-                Logger.Instance.Info(string.Format("[{0}] Room failed to enter", Username));
+                Logger.Instance.Info(string.Format("[{0}] Room failed to enter", _bot.Username));
                 throw new Exception("Not entered room.");
             }
 
-            Logger.Instance.Info(string.Format("[{0}] Room entered", Username));
+            Logger.Instance.Info(string.Format("[{0}] Room entered", _bot.Username));
         }
 
         public async Task LeaveRoom(Room room)
         {
-            Logger.Instance.Info(string.Format("[{0}] Leaving room {1}", Username, room.Name));
+            Logger.Instance.Info(string.Format("[{0}] Leaving room {1}", _bot.Username, room.Name));
 
             string response = await LibimSeTiConnector.Send(
                 request => {
@@ -151,16 +149,16 @@ namespace LibimSeTi.Core
 
             if (response.Contains("&act=text&token="))
             {
-                Logger.Instance.Info(string.Format("[{0}] Room failed to leave", Username));
+                Logger.Instance.Info(string.Format("[{0}] Room failed to leave", _bot.Username));
                 throw new Exception("Not entered room.");
             }
 
-            Logger.Instance.Info(string.Format("[{0}] Room left", Username));
+            Logger.Instance.Info(string.Format("[{0}] Room left", _bot.Username));
         }
 
         public async Task ReadRoom(Room room)
         {
-            Logger.Instance.Info(string.Format("[{0}] Reading room {1}", Username, room.Name));
+            Logger.Instance.Info(string.Format("[{0}] Reading room {1}", _bot.Username, room.Name));
 
             string response = await LibimSeTiConnector.Send(
                 request => {
@@ -225,5 +223,36 @@ namespace LibimSeTi.Core
 
             room.Content = content.ToArray();
         }
+
+        public async Task SendText(Room room, string text)
+        {
+            Logger.Instance.Info(string.Format("[{0}] [{1}] >> {2}", _bot.Username, room.Name, text));
+
+            string response = await LibimSeTiConnector.Send(
+                request =>
+                {
+                    request.Method = "POST";
+                    request.Host = "chat.libimseti.cz";
+                    request.KeepAlive = true;
+                    request.Expect = string.Empty;
+                    request.ContentType = "application/x-www-form-urlencoded";
+                    request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
+                    request.CookieContainer = new CookieContainer();
+                    request.CookieContainer.Add(new Cookie("hashId", _hashId, "/", ".libimseti.cz"));
+                    request.CookieContainer.Add(new Cookie("id_user", _userId, "/", ".libimseti.cz"));
+                    request.CookieContainer.Add(new Cookie("uid", _uid, "/", ".libimseti.cz"));
+                },
+                string.Format(
+                "token={0}&act=text&room_ID={1}&mini=0&out=1&friend_ID_list=&keep=1&text={2}",
+                _logonToken,
+                room.Id,
+                HttpUtility.UrlEncode(text)),
+                new[]
+                {
+                new Tuple<string, string>("POST / ", "POST /room.py "),
+                new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
+                });
+         }
+
     }
 }

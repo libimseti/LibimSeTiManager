@@ -48,37 +48,44 @@ namespace LibimSeTi.Core
             });
         }
 
-        public static IPAddress IP
+        public static async Task<IPAddress> GetIP()
         {
-            get
+            if (_ipAddress == null)
             {
-                if (_ipAddress == null)
+                int attempt = 0;
+
+                do
                 {
-                    _ipAddress = GetPublicIP();
-
-                    Logger.Instance.Info(string.Format("IP: {0}", _ipAddress));
+                    _ipAddress = await GetPublicIP();
+                    attempt++;
                 }
+                while (_ipAddress == null);
 
-                return _ipAddress;
+                Logger.Instance.Info(string.Format("IP: {0}", _ipAddress));
             }
+
+            return _ipAddress;
         }
 
-        private static IPAddress GetPublicIP()
+        private static async Task<IPAddress> GetPublicIP()
         {
-            TcpClient client = _socksClient.CreateConnection("checkip.dyndns.org", 80);
-
-            client.Client.Send(Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: checkip.dyndns.org\r\nConnection: Keep-Alive\r\n\r\n"));
-
-            string response = Encoding.ASCII.GetString(LibimSeTiConnector.ReadToEnd(client.Client));
-
-            var ipMatch = Regex.Match(response, "Current IP Address: (\\d+\\.\\d+\\.\\d+\\.\\d+)");
-
-            if (ipMatch.Success && ipMatch.Groups.Count == 2)
+            return await Task<IPAddress>.Run(() =>
             {
-                return IPAddress.Parse(ipMatch.Groups[1].Value);
-            }
+                TcpClient client = _socksClient.CreateConnection("checkip.dyndns.org", 80);
 
-            return null;
+                client.Client.Send(Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: checkip.dyndns.org\r\nConnection: Keep-Alive\r\n\r\n"));
+
+                string response = Encoding.ASCII.GetString(LibimSeTiConnector.ReadToEnd(client.Client));
+
+                var ipMatch = Regex.Match(response, "Current IP Address: (\\d+\\.\\d+\\.\\d+\\.\\d+)");
+
+                if (ipMatch.Success && ipMatch.Groups.Count == 2)
+                {
+                    return IPAddress.Parse(ipMatch.Groups[1].Value);
+                }
+
+                return null;
+            });
         }
 
 

@@ -2,8 +2,7 @@
 using System;
 using System.ComponentModel;
 using System.Windows;
-using System.Windows.Documents;
-using System.Windows.Media;
+using System.Windows.Controls.Primitives;
 
 namespace LibimSeTiManager
 {
@@ -14,66 +13,70 @@ namespace LibimSeTiManager
     {
         private LogWindow _logWindow;
 
+        private readonly Model _model;
+
         public MainWindow()
         {
             InitializeComponent();
 
             DataContext = this;
+
+            _model = Model.Instance;
+
+            SetupRooms();
+
+            Loaded += MainWindow_Loaded;
+        }
+
+        private void SetupRooms()
+        {
+            foreach (Room room in _model.AllRooms)
+            {
+                ToggleButton roomButton = new ToggleButton();
+                roomButton.Content = room.Name;
+                roomButton.Tag = room;
+
+                roomButton.Checked += RoomButton_Checked;
+                roomButton.Unchecked += RoomButton_Unchecked;
+
+                roomsPanel.Children.Add(roomButton);
+            }
+        }
+
+        private void RoomButton_Unchecked(object sender, RoutedEventArgs e)
+        {
+            ToggleButton roomButton = (ToggleButton)sender;
+            Tuple<Room, RoomWindow> tag = (Tuple<Room, RoomWindow>)roomButton.Tag;
+
+            tag.Item2.Close();
+
+            roomButton.Tag = tag.Item1;
+        }
+
+        private void RoomButton_Checked(object sender, RoutedEventArgs e)
+        {
+            ToggleButton roomButton = (ToggleButton)sender;
+            Room room = (Room)roomButton.Tag;
+
+            RoomWindow roomWindow = new RoomWindow(room);
+            roomButton.Tag = new Tuple<Room, RoomWindow>(room, roomWindow);
+
+            roomWindow.Closed += (sender2, e2) => { roomButton.IsChecked = false; };
+
+            roomWindow.Show();
+        }
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            var ip = await LibimSeTiConnector.GetIP();
+
+            if (ip != null)
+            {
+                Title = ip.ToString();
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-
-        private async void button_Click(object sender, RoutedEventArgs e)
-        {
-            object o = LibimSeTiConnector.IP;
-
-            LibimSeTiSession session = new LibimSeTiSession("helicobacter2", "123456789");
-           
-            await session.Logon();
-
-            Room room = new Room(351818, "Cela do naha");
-
-            for (int i = 0; i < 10; i++)
-            {
-                await session.EnterRoom(room);
-                await session.ReadRoom(room);
-
-                ShowRoom(room);
-
-                await session.LeaveRoom(room);
-            }
-        }
-
-        private void ShowRoom(Room room)
-        {
-            roomLabel.Content = room.Name;
-
-            if (room.Content == null)
-            {
-                return;
-            }
-
-            roomContentBlock.Inlines.Clear();
-
-            foreach (Room.Event roomEvent in room.Content)
-            {
-                switch (roomEvent.Type)
-                {
-                    case Room.EventType.Enter:
-                        roomContentBlock.Inlines.Add(new Run(roomEvent.UserName) { Foreground = Brushes.DarkRed, FontWeight = FontWeights.Bold });
-                        roomContentBlock.Inlines.Add(new Run(" entered\n") { FontStyle = FontStyles.Italic });
-                        break;
-                    case Room.EventType.Leave:
-                        roomContentBlock.Inlines.Add(new Run(roomEvent.UserName) { Foreground = Brushes.DarkRed, FontWeight = FontWeights.Bold });
-                        roomContentBlock.Inlines.Add(new Run(" left\n") { FontStyle = FontStyles.Italic });
-                        break;
-                    case Room.EventType.Text:
-                        roomContentBlock.Inlines.Add(new Run(roomEvent.UserName) { Foreground = Brushes.DarkRed, FontWeight = FontWeights.Bold });
-                        roomContentBlock.Inlines.Add(new Run(string.Format(": {0}\n", roomEvent.Text)));
-                        break;
-                }
-            }
-        }
 
         private void AppendToLog(string message)
         {
