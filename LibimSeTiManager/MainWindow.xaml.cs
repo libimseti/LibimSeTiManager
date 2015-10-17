@@ -1,6 +1,8 @@
 ﻿using LibimSeTi.Core;
 using System;
 using System.ComponentModel;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 
@@ -23,24 +25,41 @@ namespace LibimSeTiManager
 
             _model = Model.Instance;
 
+            ShowLog_Click(null, null);
+
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             SetupRooms();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
             Loaded += MainWindow_Loaded;
         }
 
-        private void SetupRooms()
+        private async Task SetupRooms()
         {
-            foreach (Room room in _model.AllRooms)
+            await _model.RetrieveAllRooms();
+
+            roomsPanel.Children.Clear();
+
+            roomsPanel.Children.Add(Helper.CreateHeaderButton("Rooms"));
+
+            foreach (Room room in _model.AllRooms.OrderByDescending(room => room.Users != null ? room.Users.Length : 0))
             {
-                ToggleButton roomButton = new ToggleButton();
-                roomButton.Content = room.Name;
-                roomButton.Tag = room;
-
-                roomButton.Checked += RoomButton_Checked;
-                roomButton.Unchecked += RoomButton_Unchecked;
-
-                roomsPanel.Children.Add(roomButton);
+                AddRoomButton(room);
             }
+        }
+
+        private void AddRoomButton(Room room)
+        {
+            ToggleButton roomButton = new ToggleButton();
+            roomButton.Content = room.Name;
+            roomButton.Margin = new Thickness(2, 2, 0, 0);
+            roomButton.ToolTip = string.Format("{0} users", room.Users != null ? room.Users.Length : 0);
+            roomButton.Tag = room;
+
+            roomButton.Checked += RoomButton_Checked;
+            roomButton.Unchecked += RoomButton_Unchecked;
+
+            roomsPanel.Children.Add(roomButton);
         }
 
         private void RoomButton_Unchecked(object sender, RoutedEventArgs e)
@@ -68,7 +87,7 @@ namespace LibimSeTiManager
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var ip = await LibimSeTiConnector.GetIP();
+            var ip = await Connector.GetIP();
 
             if (ip != null)
             {

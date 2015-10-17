@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 
 using System.Text.RegularExpressions;
@@ -8,7 +9,7 @@ using System.Web;
 
 namespace LibimSeTi.Core
 {
-    public class LibimSeTiSession
+    public class Session
     {
         private string _userId;
         private string _logonToken;
@@ -16,9 +17,12 @@ namespace LibimSeTi.Core
         private string _uid;
         private Bot _bot;
 
-        public LibimSeTiSession(Bot bot)
+        private List<Room> _roomsEntered;
+
+        public Session(Bot bot)
         {
             _bot = bot;
+            _roomsEntered = new List<Room>();
         }
 
         public bool IsLoggedOn
@@ -29,11 +33,19 @@ namespace LibimSeTi.Core
             }
         }
 
+        public IEnumerable<Room> RoomsEntered
+        {
+            get
+            {
+                return _roomsEntered;
+            }
+        }
+
         public async Task Logon()
         {
             Logger.Instance.Info(string.Format("[{0}] Logging on", _bot.Username));
 
-            string response = await LibimSeTiConnector.Send(
+            string response = await Connector.Send(
                 request =>
                 {
                     request.Method = "POST";
@@ -83,7 +95,7 @@ namespace LibimSeTi.Core
 
             if (!IsLoggedOn)
             {
-                Logger.Instance.Info(string.Format("[{0}] Logon failed", _bot.Username));
+                Logger.Instance.Error(string.Format("[{0}] Logon failed", _bot.Username));
                 throw new UnauthorizedAccessException();
             }
 
@@ -94,7 +106,7 @@ namespace LibimSeTi.Core
         {
             Logger.Instance.Info(string.Format("[{0}] Entering room {1}", _bot.Username, room.Name));
 
-            string response = await LibimSeTiConnector.Send(
+            string response = await Connector.Send(
                 request => {
                     request.Method = "GET";
                     request.Host = "chat.libimseti.cz";
@@ -116,9 +128,11 @@ namespace LibimSeTi.Core
 
             if (!response.Contains("&act=text&token="))
             {
-                Logger.Instance.Info(string.Format("[{0}] Room failed to enter", _bot.Username));
+                Logger.Instance.Error(string.Format("[{0}] Room failed to enter", _bot.Username));
                 throw new Exception("Not entered room.");
             }
+
+            _roomsEntered.Add(room);
 
             Logger.Instance.Info(string.Format("[{0}] Room entered", _bot.Username));
         }
@@ -127,7 +141,7 @@ namespace LibimSeTi.Core
         {
             Logger.Instance.Info(string.Format("[{0}] Leaving room {1}", _bot.Username, room.Name));
 
-            string response = await LibimSeTiConnector.Send(
+            string response = await Connector.Send(
                 request => {
                     request.Method = "GET";
                     request.Host = "chat.libimseti.cz";
@@ -149,9 +163,11 @@ namespace LibimSeTi.Core
 
             if (response.Contains("&act=text&token="))
             {
-                Logger.Instance.Info(string.Format("[{0}] Room failed to leave", _bot.Username));
+                Logger.Instance.Error(string.Format("[{0}] Room failed to leave", _bot.Username));
                 throw new Exception("Not entered room.");
             }
+
+            _roomsEntered.Remove(room);
 
             Logger.Instance.Info(string.Format("[{0}] Room left", _bot.Username));
         }
@@ -160,7 +176,7 @@ namespace LibimSeTi.Core
         {
             Logger.Instance.Info(string.Format("[{0}] Reading room {1}", _bot.Username, room.Name));
 
-            string response = await LibimSeTiConnector.Send(
+            string response = await Connector.Send(
                 request => {
                     request.Method = "GET";
                     request.Host = "chat.libimseti.cz";
@@ -228,7 +244,7 @@ namespace LibimSeTi.Core
         {
             Logger.Instance.Info(string.Format("[{0}] [{1}] >> {2}", _bot.Username, room.Name, text));
 
-            string response = await LibimSeTiConnector.Send(
+            string response = await Connector.Send(
                 request =>
                 {
                     request.Method = "POST";
@@ -252,7 +268,79 @@ namespace LibimSeTi.Core
                 new Tuple<string, string>("POST / ", "POST /room.py "),
                 new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
                 });
-         }
+        }
 
+        public static async Task<Room[]> FindAllRooms()
+        {
+            return await Task.Run(() =>
+            {
+                Logger.Instance.Info("Retrieving rooms");
+
+                List<Room> result = new List<Room>();
+
+                HttpWebRequest chatPageRequest = WebRequest.CreateHttp(string.Format("http://{0}", Configuration.Instance.LibimSeTiHostName));
+
+                var response = chatPageRequest.GetResponse();
+
+                string content = new StreamReader(response.GetResponseStream()).ReadToEnd();
+
+                foreach (Match categoryMatch in Regex.Matches(content, "act=room_list&category_ID=(\\d+)\">.*? title=\"(.*?)\"></a>"))
+                {
+                    if (categoryMatch.Groups.Count != 3)
+                    {
+                        continue;
+                    }
+
+                    HttpWebRequest categoryPageRequest = WebRequest.CreateHttp(string.Format("http://{0}/index.py?act=room_list&category_ID={1}", Configuration.Instance.LibimSeTiHostName, categoryMatch.Groups[1].Value));
+
+                    response = categoryPageRequest.GetResponse();
+                    content = new StreamReader(response.GetResponseStream()).ReadToEnd();
+
+                    foreach (Match roomMatch in Regex.Matches(content, "/room.py\\?act=enter&room_ID=(\\d+)&.*?>(.*?)</a>(.*?)</tr>", RegexOptions.Singleline))
+                    {
+                        if (roomMatch.Groups.Count != 4)
+                        {
+                            continue;
+                        }
+
+                        Room room = new Room(int.Parse(roomMatch.Groups[1].Value), roomMatch.Groups[2].Value);
+
+                        List<User> roomUsers = new List<User>();
+
+                        foreach (Match userMatch in Regex.Matches(roomMatch.Groups[3].Value, "sex_(.) card\".*?>(.*?)</a>", RegexOptions.Singleline))
+                        {
+                            if (userMatch.Groups.Count != 3)
+                            {
+                                continue;
+                            }
+
+                            User.Sex sex;
+                            
+                            switch (userMatch.Groups[1].Value)
+                            {
+                                case "m":
+                                    sex = User.Sex.Male;
+                                    break;
+                                case "f":
+                                    sex = User.Sex.Female;
+                                    break;
+                                default:
+                                    continue;
+                            }
+
+                            roomUsers.Add(new User(userMatch.Groups[2].Value, sex));
+                        }
+
+                        room.Users = roomUsers.ToArray();
+
+                        result.Add(room);
+                    }
+                }
+
+                Logger.Instance.Info(string.Format("{0} rooms found", result.Count));
+
+                return result.ToArray();
+            });
+        }
     }
 }

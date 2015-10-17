@@ -2,7 +2,7 @@
 {
     public class Bot
     {
-        private LibimSeTiSession _session;
+        private Session _session;
 
         public Bot(string username, string password)
         {
@@ -13,13 +13,13 @@
         public string Username { get; private set; }
         public string Password { get; private set; }
 
-        public LibimSeTiSession Session
+        public Session Session
         {
             get
             {
                 if (_session == null)
                 {
-                    _session = new LibimSeTiSession(this);
+                    _session = new Session(this);
                 }
 
                 return _session;

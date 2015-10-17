@@ -11,7 +11,7 @@
             <Button Content="Log" Click="ShowLog_Click"/>
         </Menu>
         <StackPanel Orientation="Vertical" Margin="10,30,0,0" HorizontalAlignment="Stretch">
-            <WrapPanel x:Name="roomsPanel" HorizontalAlignment="Stretch" MinHeight="30" VerticalAlignment="Top" />
+            <WrapPanel x:Name="roomsPanel" HorizontalAlignment="Stretch" MinHeight="30" VerticalAlignment="Top" Margin="0,3,0,0" />
         </StackPanel>
     </Grid>
 </Window>

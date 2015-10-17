@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace LibimSeTi.Core
 {
-    public static class LibimSeTiConnector
+    public static class Connector
     {
         private static readonly Socks5ProxyClient _socksClient
             = new Socks5ProxyClient(Configuration.Instance.Socks5Server, Configuration.Instance.Socks5Port);
@@ -25,26 +25,28 @@ namespace LibimSeTi.Core
             int port = 300;
 
             return await Task.Run(() => {
-
-                int attempt = 0;
-                string response;
-                do
+                lock (_socksClient)
                 {
-                    HttpWebRequest request = CreateRequest(port);
+                    int attempt = 0;
+                    string response;
+                    do
+                    {
+                        HttpWebRequest request = CreateRequest(port);
 
-                    requestSetter(request);
+                        requestSetter(request);
 
-                    response = Forward(
-                        request,
-                        requestContent != null ? Encoding.ASCII.GetBytes(requestContent) : null,
-                        port,
-                        requestReplacements,
-                        _socksClient);
+                        response = Forward(
+                            request,
+                            requestContent != null ? Encoding.ASCII.GetBytes(requestContent) : null,
+                            port,
+                            requestReplacements,
+                            _socksClient);
 
-                    attempt++;
-                } while (string.IsNullOrEmpty(response) && attempt < 5);
+                        attempt++;
+                    } while (string.IsNullOrEmpty(response) && attempt < 5);
 
-                return response;
+                    return response;
+                }
             });
         }
 
@@ -69,22 +71,28 @@ namespace LibimSeTi.Core
 
         private static async Task<IPAddress> GetPublicIP()
         {
-            return await Task<IPAddress>.Run(() =>
+            return await Task.Run(() =>
             {
-                TcpClient client = _socksClient.CreateConnection("checkip.dyndns.org", 80);
-
-                client.Client.Send(Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: checkip.dyndns.org\r\nConnection: Keep-Alive\r\n\r\n"));
-
-                string response = Encoding.ASCII.GetString(LibimSeTiConnector.ReadToEnd(client.Client));
-
-                var ipMatch = Regex.Match(response, "Current IP Address: (\\d+\\.\\d+\\.\\d+\\.\\d+)");
-
-                if (ipMatch.Success && ipMatch.Groups.Count == 2)
+                lock (_socksClient)
                 {
-                    return IPAddress.Parse(ipMatch.Groups[1].Value);
-                }
+                    TcpClient client = _socksClient.CreateConnection("checkip.dyndns.org", 80);
 
-                return null;
+                    if (client != null)
+                    {
+                        client.Client.Send(Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: checkip.dyndns.org\r\nConnection: Keep-Alive\r\n\r\n"));
+
+                        string response = Encoding.ASCII.GetString(ReadToEnd(client.Client));
+
+                        var ipMatch = Regex.Match(response, "Current IP Address: (\\d+\\.\\d+\\.\\d+\\.\\d+)");
+
+                        if (ipMatch.Success && ipMatch.Groups.Count == 2)
+                        {
+                            return IPAddress.Parse(ipMatch.Groups[1].Value);
+                        }
+                    }
+
+                    return null;
+                }
             });
         }
 

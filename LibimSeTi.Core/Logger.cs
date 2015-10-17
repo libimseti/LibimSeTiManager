@@ -31,5 +31,13 @@ namespace LibimSeTi.Core
                 Message(message);
             }
         }
+
+        public void Error(string message)
+        {
+            if (Message != null)
+            {
+                Message(message);
+            }
+        }
     }
 }

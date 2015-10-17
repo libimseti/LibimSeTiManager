@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace LibimSeTi.Core
 {
@@ -18,6 +20,10 @@ namespace LibimSeTi.Core
             public string Text { get; set; }
         }
 
+        private Event[] _content;
+
+        public event Action<Room> ContentUpdated;
+
         public Room(int id, string name)
         {
             Id = id;
@@ -28,6 +34,25 @@ namespace LibimSeTi.Core
 
         public string Name { get; private set; }
 
-        public Event[] Content { get; set; }
+        public Event[] Content
+        {
+            get { return _content; }
+
+            set
+            {
+                _content = value;
+
+                if (ContentUpdated != null)
+                {
+                    ContentUpdated(this);
+                }
+            }
+        }
+
+        public User[] Users { get; set; }
+
+        public BotGroup[] AssignedBotGroups { get; set; }
+
+        public IEnumerable<Bot> AssignedBots { get { return AssignedBotGroups?.SelectMany(group => group.Bots); } }
     }
 }
