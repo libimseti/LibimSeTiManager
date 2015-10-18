@@ -46,6 +46,26 @@ namespace LibimSeTiManager
             {
                 AddBotGroupButton(botGroup);
             }
+
+            var newBotGroupButton = Helper.CreateButtonWithTextBox(string.Empty);
+
+            newBotGroupButton.Margin = new Thickness(2, 2, 0, 0);
+
+            botsPanel.Children.Add(newBotGroupButton);
+
+            newBotGroupButton.Click += (s, e) =>
+            {
+                string newGroupName = Helper.ButtonText(newBotGroupButton);
+
+                if (string.IsNullOrWhiteSpace(newGroupName) || _model.BotGroups.Any(group => group.Name == newGroupName))
+                {
+                    return;
+                }
+
+                Configuration.Instance.BotGroups.Add(new BotGroup(newGroupName));
+
+                SetupBots();
+            };
         }
 
         private void AddBotGroupButton(BotGroup botGroup)
@@ -138,11 +158,22 @@ namespace LibimSeTiManager
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var ip = await Connector.GetIP();
-
-            if (ip != null)
+            try
             {
-                Title = ip.ToString();
+                var ip = await Connector.GetIP();
+
+                if (ip != null)
+                {
+                    Title = ip.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error(string.Format("Cannot grab IP - {0}", ex.Message));
+
+                MessageBox.Show("Program will terminate");
+
+                Close();
             }
         }
 
@@ -182,6 +213,20 @@ namespace LibimSeTiManager
             Configuration.Instance.Save();
 
             base.OnClosing(e);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+
+            Application.Current.Shutdown();
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            _model.RetrieveAllRooms();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         }
     }
 }

@@ -128,6 +128,7 @@ namespace LibimSeTi.Core
 
             if (!response.Contains("&act=text&token="))
             {
+                _roomsEntered.Remove(room);
                 Logger.Instance.Error(string.Format("[{0}] Room failed to enter", _bot.Username));
                 throw new Exception("Not entered room.");
             }
@@ -135,6 +136,15 @@ namespace LibimSeTi.Core
             _roomsEntered.Add(room);
 
             Logger.Instance.Info(string.Format("[{0}] Room entered", _bot.Username));
+
+            if ((DateTime.Now - room.LastRead).TotalMinutes > 1)
+            {
+                Logger.Instance.Info(string.Format("[{0}] Room entered - initiating reading", _bot.Username));
+
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                ReadRoom(room);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            }
         }
 
         public async Task LeaveRoom(Room room)
@@ -176,75 +186,96 @@ namespace LibimSeTi.Core
         {
             Logger.Instance.Info(string.Format("[{0}] Reading room {1}", _bot.Username, room.Name));
 
-            string response = await Connector.Send(
-                request => {
-                    request.Method = "GET";
-                    request.Host = "chat.libimseti.cz";
-                    request.KeepAlive = true;
-                    request.Expect = string.Empty;
-                    request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
-                    request.CookieContainer = new CookieContainer();
-                    request.CookieContainer.Add(new Cookie("hashId", _hashId, "/", ".libimseti.cz"));
-                    request.CookieContainer.Add(new Cookie("id_user", _userId, "/", ".libimseti.cz"));
-                    request.CookieContainer.Add(new Cookie("uid", _uid, "/", ".libimseti.cz"));
-                },
-                null,
-                new[]
+            List<Room.Event> content = new List<Room.Event>();
+            int attemptCounter = 0;
+
+            do
+            {
+                if (attemptCounter > 0)
                 {
+                    Logger.Instance.Info("Re-reading");
+                }
+
+                string response = await Connector.Send(
+                    request =>
+                    {
+                        request.Method = "GET";
+                        request.Host = "chat.libimseti.cz";
+                        request.KeepAlive = true;
+                        request.Expect = string.Empty;
+                        request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
+                        request.CookieContainer = new CookieContainer();
+                        request.CookieContainer.Add(new Cookie("hashId", _hashId, "/", ".libimseti.cz"));
+                        request.CookieContainer.Add(new Cookie("id_user", _userId, "/", ".libimseti.cz"));
+                        request.CookieContainer.Add(new Cookie("uid", _uid, "/", ".libimseti.cz"));
+                    },
+                    null,
+                    new[]
+                    {
                     new Tuple<string, string>("GET / ",
                         string.Format("GET /room.py?act=read&room_ID={0}&token={1} ", room.Id, _logonToken)),
                     new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                    });
 
-            List<Room.Event> content = new List<Room.Event>();
+                foreach (string line in response.Split(new[] { "\n" }, StringSplitOptions.None))
+                {
+                    if (line.Contains("'whisper'"))
+                    {
+                        continue;
+                    }
 
-            foreach (string line in response.Split(new[] {"\n"}, StringSplitOptions.None))
+                    if (line.StartsWith("addText"))
+                    {
+                        string[] lineParts = line.Split(',');
+
+                        if (lineParts.Length > 6 && lineParts[2] != " ''")
+                        {
+                            content.Add(new Room.Event()
+                            {
+                                Type = Room.EventType.Text,
+                                UserName = lineParts[2].Substring(2, lineParts[2].Length - 3),
+                                Text = lineParts[6].Substring(2, lineParts[6].Length - 3)
+                            });
+                        }
+                        else if (lineParts.Length >= 14 && lineParts[2] == " ''" && line.Contains("'enterUser'"))
+                        {
+                            content.Add(new Room.Event()
+                            {
+                                Type = Room.EventType.Enter,
+                                UserName = Regex.Match(lineParts[6], ">(.*)</b>").Groups[1].Value
+                            });
+                        }
+                        else if (lineParts.Length >= 14 && lineParts[2] == " ''" && line.Contains("'leaveUser'"))
+                        {
+                            content.Add(new Room.Event()
+                            {
+                                Type = Room.EventType.Leave,
+                                UserName = Regex.Match(lineParts[6], ">(.*)</b>").Groups[1].Value
+                            });
+                        }
+                    }
+                }
+
+                attemptCounter++;
+            } while (content.Count == 0 && attemptCounter < 3);
+
+            if (content.Count > 0)
             {
-                if (line.Contains("'whisper'"))
-                {
-                    continue;
-                }
-
-                if (line.StartsWith("addText"))
-                {
-                    string[] lineParts = line.Split(',');
-
-                    if (lineParts.Length > 6 && lineParts[2] != " ''")
-                    {
-                        content.Add(new Room.Event()
-                        {
-                            Type = Room.EventType.Text,
-                            UserName = lineParts[2].Substring(2, lineParts[2].Length - 3),
-                            Text = lineParts[6].Substring(2, lineParts[6].Length - 3)
-                        });
-                    }
-                    else if (lineParts.Length >= 14 && lineParts[2] == " ''" && line.Contains("'enterUser'"))
-                    {
-                        content.Add(new Room.Event()
-                        {
-                            Type = Room.EventType.Enter,
-                            UserName = Regex.Match(lineParts[6], ">(.*)</b>").Groups[1].Value
-                        });
-                    }
-                    else if (lineParts.Length >= 14 && lineParts[2] == " ''" && line.Contains("'leaveUser'"))
-                    {
-                        content.Add(new Room.Event()
-                        {
-                            Type = Room.EventType.Leave,
-                            UserName = Regex.Match(lineParts[6], ">(.*)</b>").Groups[1].Value
-                        });
-                    }
-                }
+                room.Content = content.ToArray();
+                room.LastRead = DateTime.Now;
             }
-
-            room.Content = content.ToArray();
+            else
+            {
+                _roomsEntered.Remove(room);
+                Logger.Instance.Info(string.Format("[{0}] Reading failed", _bot.Username));
+            }
         }
 
         public async Task SendText(Room room, string text)
         {
             Logger.Instance.Info(string.Format("[{0}] [{1}] >> {2}", _bot.Username, room.Name, text));
 
-            string response = await Connector.Send(
+            await Connector.Send(
                 request =>
                 {
                     request.Method = "POST";
@@ -268,6 +299,8 @@ namespace LibimSeTi.Core
                 new Tuple<string, string>("POST / ", "POST /room.py "),
                 new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
                 });
+
+            Logger.Instance.Info(string.Format("[{0}] [{1}] text sent", _bot.Username, room.Name));
         }
 
         public static async Task<Room[]> FindAllRooms()

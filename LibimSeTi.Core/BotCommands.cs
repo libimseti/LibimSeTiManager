@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LibimSeTi.Core
@@ -8,6 +9,7 @@ namespace LibimSeTi.Core
     {
         protected abstract string IntCanDo(Bot bot);
         public abstract Task Do(Bot bot);
+        public abstract string Header { get; }
 
         public bool CanDo(Bot bot, bool suppressErrorMessage = false)
         {
@@ -34,6 +36,14 @@ namespace LibimSeTi.Core
         {
             await bot.Session.Logon();
         }
+
+        public override string Header
+        {
+            get
+            {
+                return "Log on";
+            }
+        }
     }
 
     public class EnterRoomCommand : BotCommand
@@ -54,6 +64,14 @@ namespace LibimSeTi.Core
         {
             await bot.Session.EnterRoom(Room);
         }
+
+        public override string Header
+        {
+            get
+            {
+                return string.Format("Enter {0}", Room != null ? Room.Name : "N/A");
+            }
+        }
     }
 
     public class LeaveRoomCommand : BotCommand
@@ -73,6 +91,14 @@ namespace LibimSeTi.Core
         public async override Task Do(Bot bot)
         {
             await bot.Session.LeaveRoom(Room);
+        }
+
+        public override string Header
+        {
+            get
+            {
+                return string.Format("Leave {0}", Room != null ? Room.Name : "N/A");
+            }
         }
     }
 
@@ -103,6 +129,14 @@ namespace LibimSeTi.Core
         public async override Task Do(Bot bot)
         {
             await bot.Session.ReadRoom(Room);
+        }
+
+        public override string Header
+        {
+            get
+            {
+                return string.Format("Read {0}", Room != null ? Room.Name : "N/A");
+            }
         }
     }
 
@@ -144,6 +178,44 @@ namespace LibimSeTi.Core
         public async override Task Do(Bot bot)
         {
             await bot.Session.SendText(Room, TextGetter());
+        }
+
+        public override string Header
+        {
+            get
+            {
+                return string.Format("[{0}] >> {1}", Room != null ? Room.Name : "N/A", TextGetter != null ? TextGetter() : "N/A");
+            }
+        }
+    }
+
+    public class PauseCommand : BotCommand
+    {
+        public Func<int> PauseAmountGetter { get; set; }
+
+        protected override string IntCanDo(Bot bot)
+        {
+            if (PauseAmountGetter == null)
+            {
+                return "No pause function set";
+            }
+
+            return null;
+        }
+
+        public override Task Do(Bot bot)
+        {
+            Logger.Instance.Info(string.Format("[{0}] {1}", bot.Username, Header));
+
+            return Task.Delay(PauseAmountGetter() * 1000);
+        }
+
+        public override string Header
+        {
+            get
+            {
+                return string.Format("Pause for {0} s", PauseAmountGetter != null ? PauseAmountGetter().ToString() : "N/A");
+            }
         }
     }
 }

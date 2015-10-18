@@ -8,6 +8,9 @@ using System.Linq;
 using System.ComponentModel;
 using System.Threading;
 using System.Windows.Controls;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Windows.Input;
 
 namespace LibimSeTiManager
 {
@@ -61,6 +64,9 @@ namespace LibimSeTiManager
         private readonly Model _model;
         private readonly AutoResetEvent _stopWatcherEvent = new AutoResetEvent(false);
 
+        private ToggleButton _actionsModeButton;
+        private ToggleButton _isComposingButton;
+
         public RoomWindow(Room room)
         {
             InitializeComponent();
@@ -76,8 +82,40 @@ namespace LibimSeTiManager
             Update(room);
 
             _room.ContentUpdated += Update;
+            _room.UsersUpdated += Update;
 
             StartRoomWatching();
+        }
+
+        private bool IsComposing { get { return _isComposingButton != null && _isComposingButton.IsChecked == true; } }
+
+        private bool IsAllBotsAtOnceMode { get { return _actionsModeButton != null && _actionsModeButton.IsChecked == true; } }
+
+        private object GetComposingButtonContent(string name)
+        {
+            StackPanel panel = new StackPanel();
+            panel.Orientation = Orientation.Horizontal;
+            panel.VerticalAlignment = VerticalAlignment.Bottom;
+            panel.Margin = new Thickness(0, 0, 10, 0);
+
+            TextBlock nameBlock = new TextBlock();
+            nameBlock.Text = name;
+            nameBlock.Margin = new Thickness(0, 0, 5, 0);
+
+            panel.Children.Add(nameBlock);
+
+            _actionsModeButton = new ToggleButton();
+            _actionsModeButton.Margin = new Thickness(2, 2, 0, 0);
+            _actionsModeButton.Background = Brushes.Black;
+            _actionsModeButton.Foreground = Brushes.White;
+            _actionsModeButton.Checked += (s, e) => { _actionsModeButton.Content = " All at once "; e.Handled = true; };
+            _actionsModeButton.Unchecked += (s, e) => { _actionsModeButton.Content = " Bot by bot "; e.Handled = true; };
+            _actionsModeButton.IsChecked = true;
+            _actionsModeButton.IsChecked = false;
+
+            panel.Children.Add(_actionsModeButton);
+
+            return panel;
         }
 
         private void SetupActions()
@@ -86,23 +124,174 @@ namespace LibimSeTiManager
 
             actionsPanel.Children.Add(Helper.CreateHeaderButton("Actions"));
 
+
+            _isComposingButton = new ToggleButton();
+            _isComposingButton.Margin = new Thickness(2, 2, 0, 0);
+            _isComposingButton.Background = Brushes.Black;
+            _isComposingButton.Foreground = Brushes.White;
+            _isComposingButton.Checked += (s, e) => { _isComposingButton.Content = GetComposingButtonContent(" Composing mode "); };
+            _isComposingButton.Unchecked += (s, e) => { _isComposingButton.Content = GetComposingButtonContent(" Direct mode "); };
+            _isComposingButton.IsChecked = true;
+            _isComposingButton.IsChecked = false;
+
+            actionsPanel.Children.Add(_isComposingButton);
+
             AddActionButton("Logon", new LogonCommand());
             AddActionButton("Enter", new EnterRoomCommand { Room = _room });
             AddActionButton("Leave", new LeaveRoomCommand { Room = _room });
+
+            var textContent = CreateTextActionContent("Text");
+            AddActionButton(textContent.Item1, new TextRoomCommand {
+                Room = _room,
+                TextGetter = () => textContent.Item2.Text },
+                cmd =>
+                {
+                    TextRoomCommand textCmd = (TextRoomCommand)cmd;
+
+                    string text = textContent.Item2.Text;
+
+                    return new TextRoomCommand { Room = textCmd.Room, TextGetter = () => text };
+                });
+
+            var pauseContent = CreateTextActionContent("Pause");
+            AddActionButton(pauseContent.Item1, new PauseCommand {
+                PauseAmountGetter = () => int.Parse(pauseContent.Item2.Text) },
+                cmd =>
+                {
+                    PauseCommand pauseCmd = (PauseCommand)cmd;
+
+                    int pauseSeconds = int.Parse(pauseContent.Item2.Text);
+
+                    return new PauseCommand { PauseAmountGetter = () => pauseSeconds };
+                });
+
+            Button composedActionButton = new Button();
+            composedActionButton.Content = "Composed action";
+            composedActionButton.Margin = new Thickness(2, 2, 0, 0);
+
+            composedActionButton.Click += (s, e) =>
+            {
+                RunComposedAction();
+            };
+
+            actionsPanel.Children.Add(composedActionButton);
         }
 
-        private void AddActionButton(string name, BotCommand command)
+        private async void RunComposedAction()
+        {
+            if (composedActionBox.Items.Count == 0)
+            {
+                Logger.Instance.Error("No action in composed action");
+                return;
+            }
+
+            if (_room.AssignedBots == null || !_room.AssignedBots.Any())
+            {
+                Logger.Instance.Error("No assigned bots");
+                return;
+            }
+
+            Bot[] assignedBots = _room.AssignedBots.ToArray();
+            BotCommand[] commands = composedActionBox.Items.OfType<BotCommand>().ToArray();
+            bool isAllBotsAtOnce = IsAllBotsAtOnceMode;
+
+            if (isAllBotsAtOnce)
+            {
+                foreach (BotCommand command in commands)
+                {
+                    List<Task> commandTasks = new List<Task>();
+
+                    foreach (Bot assignedBot in assignedBots)
+                    {
+                        if (command.CanDo(assignedBot))
+                        {
+                            commandTasks.Add(command.Do(assignedBot));
+                        }
+                    }
+
+                    try
+                    {
+                        await Task.Run(() => Task.WaitAll(commandTasks.ToArray()));
+                    }
+                    catch
+                    {
+                        Logger.Instance.Error(string.Format("Command {0} cannot be waited, bailing out", command.Header));
+                    }
+                }
+            }
+            else
+            {
+                foreach (Bot assignedBot in assignedBots)
+                {
+                    foreach (BotCommand command in commands)
+                    {
+                        if (command.CanDo(assignedBot))
+                        {
+                            try
+                            {
+                                await command.Do(assignedBot);
+                            }
+                            catch
+                            {
+                                Logger.Instance.Error(string.Format("[{0}] command {1} failed", assignedBot.Username, command.Header));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private Tuple<StackPanel, TextBox> CreateTextActionContent(string name)
+        {
+            StackPanel panel = new StackPanel();
+            panel.Orientation = Orientation.Horizontal;
+            panel.VerticalAlignment = VerticalAlignment.Bottom;
+            panel.Margin = new Thickness(0, 0, 10, 0);
+
+            TextBlock nameBlock = new TextBlock();
+            nameBlock.Text = name;
+            nameBlock.Margin = new Thickness(0, 0, 5, 0);
+
+            panel.Children.Add(nameBlock);
+
+            TextBox textBox = new TextBox();
+            textBox.MinWidth = 10;
+            
+            panel.Children.Add(textBox);
+
+            return new Tuple<StackPanel, TextBox>(panel, textBox);
+        }
+
+        private Button AddActionButton(object content, BotCommand command, Func<BotCommand, BotCommand> onInstantiating = null)
         {
             Button actionButton = new Button();
-            actionButton.Content = name;
+            actionButton.Content = content;
             actionButton.Margin = new Thickness(2, 2, 0, 0);
             actionButton.Tag = command;
 
             actionButton.Click += (s, e) =>
             {
+                if (IsComposing)
+                {
+                    BotCommand instantiatedCommand;
+
+                    if (onInstantiating != null)
+                    {
+                        instantiatedCommand = onInstantiating(command);
+                    }
+                    else
+                    {
+                        instantiatedCommand = command;
+                    }
+
+                    composedActionBox.Items.Add(instantiatedCommand);
+
+                    return;
+                }
+
                 if (_room.AssignedBots == null || !_room.AssignedBots.Any())
                 {
-                    Logger.Instance.Info("No assigned bots");
+                    Logger.Instance.Error("No assigned bots");
                     return;
                 }
 
@@ -116,6 +305,8 @@ namespace LibimSeTiManager
             };
 
             actionsPanel.Children.Add(actionButton);
+
+            return actionButton;
         }
 
         private void StartRoomWatching()
@@ -127,7 +318,7 @@ namespace LibimSeTiManager
 
                 while (!_stopWatcherEvent.WaitOne(TimeSpan.FromSeconds(3)))
                 {
-                    Bot watchingBot = _room.AssignedBots?.FirstOrDefault(bot => readingCommand.CanDo(bot, true));
+                    Bot watchingBot = _room.GetBotToMonitor(readingCommand);
 
                     if (watchingBot != null)
                     {
@@ -232,6 +423,8 @@ namespace LibimSeTiManager
                             break;
                     }
                 }
+
+                roomContentScroller.ScrollToEnd();
             }
 
             if (room.Users != null)
@@ -250,8 +443,24 @@ namespace LibimSeTiManager
             base.OnClosing(e);
 
             _room.ContentUpdated -= Update;
+            _room.UsersUpdated -= Update;
 
             _stopWatcherEvent.Set();
+        }
+
+        private void composedActionBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete)
+            {
+                if (composedActionBox.SelectedItem == null)
+                {
+                    composedActionBox.Items.Clear();
+                }
+                else
+                {
+                    composedActionBox.Items.Remove(composedActionBox.SelectedItem);
+                }
+            }
         }
     }
 }

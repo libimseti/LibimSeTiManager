@@ -18,5 +18,24 @@ namespace LibimSeTiManager
             button.IsEnabled = false;
             return button;
         }
+
+        public static Button CreateButtonWithTextBox(string text)
+        {
+            TextBox textBox = new TextBox();
+            textBox.Text = text;
+            textBox.Margin = new Thickness(0, 0, 10, 0);
+            textBox.MinWidth = 20;
+
+            Button button = new Button();
+            button.HorizontalContentAlignment = HorizontalAlignment.Left;
+            button.Content = textBox;
+            button.MinWidth = 40;
+            return button;
+        }
+
+        public static string ButtonText(Button buttonWithTextBox)
+        {
+            return ((TextBox)buttonWithTextBox.Content).Text;
+        }
     }
 }

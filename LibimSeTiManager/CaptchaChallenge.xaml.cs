@@ -19,6 +19,11 @@ namespace LibimSeTiManager
             captchaImage.Source = new BitmapImage(new Uri(token.ImageUrl));
         }
 
+        public void FocusTextBox()
+        {
+            captchaBox.Focus();
+        }
+
         private void okButton_Click(object sender, RoutedEventArgs e)
         {
             TypedText = captchaBox.Text;

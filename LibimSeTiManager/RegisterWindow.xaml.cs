@@ -1,5 +1,7 @@
 ﻿using LibimSeTi.Core;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -159,22 +161,42 @@ namespace LibimSeTiManager
             foreach (RegistrationItem registrationItem in registerBox.Items)
             {
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                CreateBot(registrationItem.RegistrationData);
+                CreateBot(registrationItem);
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             }
-
-            registerBox.Items.Clear();
         }
 
-        private async Task CreateBot(RegistrationData registrationData)
+        private List<CaptchaChallenge> _pendingChanllenges = new List<CaptchaChallenge>();
+
+        private async Task CreateBot(RegistrationItem registrationItem)
         {
+            RegistrationData registrationData = registrationItem.RegistrationData;
+
             CaptchaToken captchaToken = await Session.GetRegistrationCaptcha();
 
             CaptchaChallenge captchaChallenge = new CaptchaChallenge(captchaToken);
+
+            if (_pendingChanllenges.Count > 0)
+            {
+                captchaChallenge.WindowState = WindowState.Minimized;
+            }
+
+            captchaChallenge.ShowActivated = false;
             captchaChallenge.Show();
+
+            _pendingChanllenges.Add(captchaChallenge);
 
             captchaChallenge.Closed += async (s, e) =>
             {
+                _pendingChanllenges.Remove(captchaChallenge);
+
+                if (_pendingChanllenges.Count > 0)
+                {
+                    _pendingChanllenges[0].WindowState = WindowState.Normal;
+                    _pendingChanllenges[0].Activate();
+                    _pendingChanllenges[0].FocusTextBox();
+                }
+
                 string typedCaptcha = captchaChallenge.TypedText;
 
                 if (string.IsNullOrWhiteSpace(typedCaptcha))
@@ -182,13 +204,16 @@ namespace LibimSeTiManager
                     return;
                 }
 
+                bool isRegistered;
+
                 try
                 {
                     await Session.Register(registrationData, captchaToken, typedCaptcha);
+                    isRegistered = true;
                 }
                 catch
                 {
-                    return;
+                    isRegistered = false;
                 }
 
                 Bot newBot = new Bot(registrationData.UserName, registrationData.Password);
@@ -199,6 +224,11 @@ namespace LibimSeTiManager
                 }
                 catch
                 {
+                    if (!isRegistered)
+                    {
+                        return;
+                    }
+
                     if (MessageBox.Show(string.Format("{0}/{1} looks registered but cannot logon. Add to bots ?", newBot.Username, newBot.Password),
                         string.Empty, MessageBoxButton.YesNo) == MessageBoxResult.No)
                     {
@@ -214,6 +244,8 @@ namespace LibimSeTiManager
                 }
 
                 SetupBots();
+
+                registerBox.Items.Remove(registrationItem);
             };
         }
 
