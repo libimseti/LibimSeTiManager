@@ -143,7 +143,7 @@ namespace LibimSeTi.Core
     public class TextRoomCommand : BotCommand
     {
         public Room Room { get; set; }
-        public Func<string> TextGetter { get; set; }
+        public Func<Bot, string> TextGetter { get; set; }
 
         protected override string IntCanDo(Bot bot)
         {
@@ -157,7 +157,7 @@ namespace LibimSeTi.Core
                 return "No text function set";
             }
 
-            if (string.IsNullOrEmpty(TextGetter()))
+            if (string.IsNullOrEmpty(TextGetter(bot)))
             {
                 return "No text set";
             }
@@ -177,14 +177,14 @@ namespace LibimSeTi.Core
 
         public async override Task Do(Bot bot)
         {
-            await bot.Session.SendText(Room, TextGetter());
+            await bot.Session.SendText(Room, TextGetter(bot));
         }
 
         public override string Header
         {
             get
             {
-                return string.Format("[{0}] >> {1}", Room != null ? Room.Name : "N/A", TextGetter != null ? TextGetter() : "N/A");
+                return string.Format("[{0}] >> {1}", Room != null ? Room.Name : "N/A", TextGetter != null ? TextGetter(null) : "N/A");
             }
         }
     }

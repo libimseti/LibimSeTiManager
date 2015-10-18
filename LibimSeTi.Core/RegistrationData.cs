@@ -9,5 +9,6 @@ namespace LibimSeTi.Core
         public string Email { get; set; }
         public User.Sex Sex { get; set; }
         public DateTime BirthDate { get; set; }
+        public string[] Messages { get; set; }
     }
 }

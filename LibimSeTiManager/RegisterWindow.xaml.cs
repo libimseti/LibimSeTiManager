@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace LibimSeTiManager
@@ -48,7 +49,16 @@ namespace LibimSeTiManager
 
             Title = string.Format("Bot group {0}", botGroup.Name);
 
+            SetupIdentityProviders();
+
             SetupBots();
+        }
+
+        private void SetupIdentityProviders()
+        {
+            identityProviderBox.Items.Add(new WikiIdentityProvider());
+
+            identityProviderBox.SelectedIndex = 0;
         }
 
         private void SetupBots()
@@ -216,7 +226,7 @@ namespace LibimSeTiManager
                     isRegistered = false;
                 }
 
-                Bot newBot = new Bot(registrationData.UserName, registrationData.Password);
+                Bot newBot = new Bot(registrationData.UserName, registrationData.Password, registrationData.Messages);
 
                 try
                 {
@@ -252,6 +262,69 @@ namespace LibimSeTiManager
         private void clearGenerate_Click(object sender, RoutedEventArgs e)
         {
             registerBox.Items.Clear();
+        }
+
+        private void providerGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            IIdentityProvider identityProvider = identityProviderBox.SelectedItem as IIdentityProvider;
+
+            int numberOfNicks = int.Parse(botsNumberBox.Text);
+
+            if (identityProvider != null)
+            {
+                try
+                {
+                    for (int i = 0; i < numberOfNicks; i++)
+                    {
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                        GenerateProvidedIdentity(identityProvider);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error(ex.Message);
+                }
+            }
+        }
+
+        private async Task GenerateProvidedIdentity(IIdentityProvider identityProvider)
+        {
+            Random rnd = new Random();
+
+            RegistrationData identity = identityProvider.GetNextIdentity();
+
+            if (identity == null)
+            {
+                return;
+            }
+
+            User existingUser = await Session.GetUserInfo(identity.UserName);
+
+            if (existingUser == null)
+            {
+                identity.Password = GetPassword();
+                identity.Email = GetEmail();
+                identity.BirthDate = new DateTime(rnd.Next(1950, 1980), rnd.Next(1, 12), rnd.Next(1, 28));
+                identity.Sex = GetSex();
+
+                registerBox.Items.Add(new RegistrationItem
+                {
+                    RegistrationData = identity
+                });
+            }
+            else
+            {
+                Logger.Instance.Error(string.Format("User {0} already exists", identity.UserName));
+            }
+        }
+
+        private void registerBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete && registerBox.SelectedItem != null)
+            {
+                registerBox.Items.Remove(registerBox.SelectedItem);
+            }
         }
     }
 }

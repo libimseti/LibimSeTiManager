@@ -66,7 +66,14 @@ namespace LibimSeTi.Core
 
                 foreach (XmlNode botNode in botGroupNode.SelectNodes("Bot"))
                 {
-                    Bot bot = new Bot(botNode.Attributes["UserName"].Value, botNode.Attributes["Password"].Value);
+                    List<string> messages = new List<string>();
+
+                    foreach (XmlNode messageNode in botNode.SelectNodes("Message"))
+                    {
+                        messages.Add(messageNode.InnerText);
+                    }
+
+                    Bot bot = new Bot(botNode.Attributes["UserName"].Value, botNode.Attributes["Password"].Value, messages.ToArray());
 
                     botGroup.Bots.Add(bot);
                 }
@@ -123,6 +130,14 @@ namespace LibimSeTi.Core
                         attr = config.CreateAttribute("Password");
                         attr.Value = bot.Password;
                         botNode.Attributes.Append(attr);
+
+                        if (bot.Messages != null)
+                        {
+                            foreach (string message in bot.Messages)
+                            {
+                                botNode.AppendChild(config.CreateElement("Message")).InnerText = message;
+                            }
+                        }
                     }
                 }
             }

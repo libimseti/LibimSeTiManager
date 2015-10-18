@@ -4,14 +4,16 @@
     {
         private Session _session;
 
-        public Bot(string username, string password)
+        public Bot(string username, string password, string[] messages)
         {
             Username = username;
             Password = password;
+            Messages = messages;
         }
 
         public string Username { get; private set; }
         public string Password { get; private set; }
+        public string[] Messages { get; private set; }
 
         public Session Session
         {

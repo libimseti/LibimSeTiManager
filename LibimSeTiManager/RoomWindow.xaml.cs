@@ -143,17 +143,36 @@ namespace LibimSeTiManager
             var textContent = CreateTextActionContent("Text");
             AddActionButton(textContent.Item1, new TextRoomCommand {
                 Room = _room,
-                TextGetter = () => textContent.Item2.Text },
+                TextGetter = bot => textContent.Item2.Text },
                 cmd =>
                 {
                     TextRoomCommand textCmd = (TextRoomCommand)cmd;
 
                     string text = textContent.Item2.Text;
 
-                    return new TextRoomCommand { Room = textCmd.Room, TextGetter = () => text };
+                    return new TextRoomCommand { Room = textCmd.Room, TextGetter = bot => text };
                 });
 
+            var messageContent = CreateTextActionContent("Message");
+            messageContent.Item2.Text = "2";
+            AddActionButton(messageContent.Item1, new TextRoomCommand
+            {
+                Room = _room,
+                TextGetter = bot => bot != null ? bot.Messages.Length >= int.Parse(messageContent.Item2.Text) ? bot.Messages[int.Parse(messageContent.Item2.Text) - 1] : null : string.Format("Message {0}", messageContent.Item2.Text)
+            },
+            cmd =>
+            {
+                TextRoomCommand textCmd = (TextRoomCommand)cmd;
+
+                int messageNumber = int.Parse(messageContent.Item2.Text);
+
+                return new TextRoomCommand {
+                    Room = textCmd.Room,
+                    TextGetter = bot => bot != null ? bot.Messages.Length >= messageNumber ? bot.Messages[messageNumber - 1] : null : string.Format("Message {0}", messageNumber) };
+            });
+
             var pauseContent = CreateTextActionContent("Pause");
+            pauseContent.Item2.Text = "3";
             AddActionButton(pauseContent.Item1, new PauseCommand {
                 PauseAmountGetter = () => int.Parse(pauseContent.Item2.Text) },
                 cmd =>
