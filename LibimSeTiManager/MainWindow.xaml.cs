@@ -31,7 +31,58 @@ namespace LibimSeTiManager
             SetupRooms();
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
+            SetupBots();
+
             Loaded += MainWindow_Loaded;
+        }
+
+        private void SetupBots()
+        {
+            botsPanel.Children.Clear();
+
+            botsPanel.Children.Add(Helper.CreateHeaderButton("Bot groups"));
+
+            foreach (var botGroup in _model.BotGroups)
+            {
+                AddBotGroupButton(botGroup);
+            }
+        }
+
+        private void AddBotGroupButton(BotGroup botGroup)
+        {
+            ToggleButton botGroupButton = new ToggleButton();
+            botGroupButton.Content = botGroup.Name;
+            botGroupButton.Margin = new Thickness(2, 2, 0, 0);
+            botGroupButton.ToolTip = string.Format("{0} bots", botGroup.Bots != null ? botGroup.Bots.Count : 0);
+            botGroupButton.Tag = botGroup;
+
+            botGroupButton.Checked += BotGroupButton_Checked;
+            botGroupButton.Unchecked += BotGroupButton_Unchecked;
+
+            botsPanel.Children.Add(botGroupButton);
+        }
+
+        private void BotGroupButton_Checked(object sender, RoutedEventArgs e)
+        {
+            ToggleButton botGroupButton = (ToggleButton)sender;
+            BotGroup botGroup = (BotGroup)botGroupButton.Tag;
+
+            RegisterWindow botGroupWindow = new RegisterWindow(botGroup);
+            botGroupButton.Tag = new Tuple<BotGroup, RegisterWindow>(botGroup, botGroupWindow);
+
+            botGroupWindow.Closed += (sender2, e2) => { botGroupButton.IsChecked = false; };
+
+            botGroupWindow.Show();
+        }
+
+        private void BotGroupButton_Unchecked(object sender, RoutedEventArgs e)
+        {
+            ToggleButton botGroupButton = (ToggleButton)sender;
+            Tuple<BotGroup, RegisterWindow> tag = (Tuple<BotGroup, RegisterWindow>)botGroupButton.Tag;
+
+            tag.Item2.Close();
+
+            botGroupButton.Tag = tag.Item1;
         }
 
         private async Task SetupRooms()
@@ -127,6 +178,8 @@ namespace LibimSeTiManager
             {
                 _logWindow.Close();
             }
+
+            Configuration.Instance.Save();
 
             base.OnClosing(e);
         }

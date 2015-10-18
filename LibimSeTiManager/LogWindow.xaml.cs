@@ -18,6 +18,7 @@ namespace LibimSeTiManager
             if (PropertyChanged != null)
             {
                 PropertyChanged(this, new PropertyChangedEventArgs("Log"));
+                Dispatcher.Invoke(() => LogBox.ScrollToEnd());
             }
         }
 

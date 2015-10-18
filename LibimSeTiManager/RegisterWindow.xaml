@@ -1,0 +1,43 @@
+﻿<Window x:Class="LibimSeTiManager.RegisterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:LibimSeTiManager"
+        mc:Ignorable="d" Height="660.937" Width="620.759">
+    <Grid>
+        <ListBox x:Name="botBox" HorizontalAlignment="Left" Height="631" VerticalAlignment="Top" Width="145">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Username}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <ListBox x:Name="registerBox" HorizontalAlignment="Left" Height="525" Margin="462,67,0,0" VerticalAlignment="Top" Width="141">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding RegistrationData.UserName}" Foreground="{Binding Color}">
+                        <TextBlock.ToolTip>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{Binding RegistrationData.Email}" />
+                                <TextBlock Text="{Binding BirthDateString}" />
+                            </StackPanel>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Button x:Name="patternGenerate" FontSize="10" Content="Generate" HorizontalAlignment="Left" Margin="403,10,0,0" VerticalAlignment="Top" Width="54" Height="13" Padding="0,-3,0,0" ToolTip="Generate according pattern" Click="patternGenerate_Click"/>
+        <Button x:Name="providerGenerate" FontSize="10" Content="Generate" HorizontalAlignment="Left" Margin="403,28,0,0" VerticalAlignment="Top" Width="54" Height="13" Padding="0,-3,0,0" ToolTip="Generate using provider" />
+        <TextBox x:Name="botsNumberBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="568,28,0,0" TextWrapping="Wrap" Text="10" VerticalAlignment="Top" Width="35" ToolTip="Number of nicks to generate"/>
+        <TextBox x:Name="patternBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="462,10,0,0" TextWrapping="Wrap" Text="pattern" VerticalAlignment="Top" Width="95" ToolTip="Nickname pattern; use {0} for numbers in the right"/>
+        <TextBox x:Name="patternFromBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="557,10,0,0" TextWrapping="Wrap" Text="1" VerticalAlignment="Top" Width="23" ToolTip="Generate nick from"/>
+        <TextBox x:Name="patternToBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="580,10,0,0" TextWrapping="Wrap" Text="1" VerticalAlignment="Top" Width="23" ToolTip="Generate nick to" />
+        <ComboBox x:Name="identityProviderBox" HorizontalAlignment="Left" Margin="462,27,0,0" VerticalAlignment="Top" Width="101" Height="14" ToolTip="Identity provider"/>
+        <TextBox x:Name="passwordBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="543,46,0,0" TextWrapping="Wrap" Text="123456789" VerticalAlignment="Top" Width="60" ToolTip="Password (empty = random)" />
+        <CheckBox x:Name="sexBox" Content="M/F" HorizontalAlignment="Left" Margin="416,46,0,0" VerticalAlignment="Top" IsThreeState="True" IsChecked="{x:Null}" ToolTip="Sex (indiferent = random)"/>
+        <TextBox x:Name="emailBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="456,46,0,0" TextWrapping="Wrap" Text="email@email.com" VerticalAlignment="Top" Width="82" ToolTip="Email (empty = random)" RenderTransformOrigin="-0.378,0.591" />
+        <Button x:Name="registerButton" Content="Create bots" HorizontalAlignment="Left" Margin="462,599,0,0" VerticalAlignment="Top" Width="141" Click="registerButton_Click"/>
+        <Button x:Name="clearGenerate" FontSize="10" Content="X" HorizontalAlignment="Left" Margin="440,67,0,0" VerticalAlignment="Top" Width="14" Height="13" Padding="0,-3,0,0" ToolTip="Generate according pattern" Click="clearGenerate_Click" />
+    </Grid>
+</Window>

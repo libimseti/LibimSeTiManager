@@ -9,23 +9,11 @@ namespace LibimSeTi.Core
 
         private Model()
         {
-            AllRooms = new[] { new Room(351818, "Cela do naha") };
-
-
-            var bot = new Bot("helicobacter2", "123456789");
-            var bots = new BotGroup("helicobacters");
-            bots.Bots.Add(bot);
-            bots.Bots.Add(new Bot("helicobacter3", "123456789"));
-            Pioneer = bot;
-
-            BotGroups = new[] { bots };
         }
 
         public IEnumerable<Room> AllRooms { get; private set; }
 
-        public IEnumerable<BotGroup> BotGroups { get; private set; }
-
-        public Bot Pioneer { get; private set; }
+        public IEnumerable<BotGroup> BotGroups { get { return Configuration.Instance.BotGroups; } }
 
         public static Model Instance
         {

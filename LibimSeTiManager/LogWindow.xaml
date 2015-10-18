@@ -5,6 +5,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:LibimSeTiManager"
         mc:Ignorable="d"
-        Title="LogWindow" Height="1000" Width="500">
+        Title="Log" Height="1000" Width="500">
     <TextBox x:Name="LogBox" Text="{Binding Log, Mode=OneWay}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" VerticalScrollBarVisibility="Auto" />
 </Window>

@@ -16,7 +16,7 @@ namespace LibimSeTiManager
     /// </summary>
     public partial class RoomWindow : Window
     {
-        private class UserItem
+        public class UserItem
         {
             public UserItem(User user)
             {
@@ -29,14 +29,20 @@ namespace LibimSeTiManager
             {
                 get
                 {
-                    switch (User.UserSex)
-                    {
-                        default:
-                        case User.Sex.Male:
-                            return Brushes.Blue;
-                        case User.Sex.Female:
-                            return Brushes.Pink;
-                    }
+                    return SexToColor(User.UserSex);
+                }
+            }
+
+            public static Brush SexToColor(User.Sex sex)
+            {
+                switch (sex)
+                {
+                    case User.Sex.Male:
+                        return Brushes.Blue;
+                    case User.Sex.Female:
+                        return Brushes.DeepPink;
+                    default:
+                        return Brushes.Black;
                 }
             }
         }

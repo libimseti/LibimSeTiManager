@@ -1,0 +1,14 @@
+﻿<Window x:Class="LibimSeTiManager.CaptchaChallenge"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:LibimSeTiManager"
+        mc:Ignorable="d"
+        Title="Fill the number" Height="154" Width="403">
+    <Grid>
+        <Image x:Name="captchaImage" HorizontalAlignment="Left"  Margin="0,20,0,0" VerticalAlignment="Top" MinHeight="10" MinWidth="10" />
+        <TextBox x:Name="captchaBox" HorizontalAlignment="Left" Height="20" VerticalAlignment="Top" Width="120"/>
+        <Button x:Name="okButton" Content="OK" HorizontalAlignment="Left" Margin="125,0,0,0" VerticalAlignment="Top" Width="75" Height="20" IsDefault="True" Click="okButton_Click"/>
+    </Grid>
+</Window>

@@ -342,5 +342,138 @@ namespace LibimSeTi.Core
                 return result.ToArray();
             });
         }
+
+        public static async Task<User> GetUserInfo(string username)
+        {
+            Logger.Instance.Info(string.Format("Reading user info for [{0}]", username));
+
+            string response = await Connector.Send(
+                request => {
+                    request.Method = "GET";
+                    request.Host = "ajaxapi.libimseti.cz";
+                    request.KeepAlive = true;
+                    request.Expect = string.Empty;
+                    request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
+                },
+                null,
+                new[]
+                {
+                    new Tuple<string, string>("GET / ",
+                        string.Format("GET /user/info?callback=jQuery1705234449510280471_1445100660724&username={0} ", username)),
+                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
+                });
+
+            int? userId;
+
+            Match userIdMatch = Regex.Match(response, "\"userId\":(\\d+)");
+
+            if (userIdMatch.Success && userIdMatch.Groups.Count == 2)
+            {
+                userId = int.Parse(userIdMatch.Groups[1].Value);
+            }
+            else
+            {
+                userId = null;
+            }
+
+            User.Sex? sex;
+
+            Match sexMatch = Regex.Match(response, "\"sex\":\"(.)\"");
+
+            if (sexMatch.Success && sexMatch.Groups.Count == 2)
+            {
+                switch(sexMatch.Groups[1].Value)
+                {
+                    case "m":
+                        sex = User.Sex.Male;
+                        break;
+                    case "f":
+                        sex = User.Sex.Female;
+                        break;
+                    default:
+                        sex = null;
+                        break;
+                }
+            }
+            else
+            {
+                sex = null;
+            }
+
+            if (userId != null && sex != null)
+            {
+                return new User(username, sex.Value) { Id = userId.Value };
+            }
+
+            return null;
+        }
+
+        public static async Task<CaptchaToken> GetRegistrationCaptcha()
+        {
+            Logger.Instance.Info("Getting registration captcha");
+
+            string response = await Connector.Send(
+                request => {
+                    request.Method = "GET";
+                    request.Host = "registrace.libimseti.cz";
+                    request.KeepAlive = true;
+                    request.Expect = string.Empty;
+                    request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
+                },
+                null,
+                new[]
+                {
+                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
+                });
+
+            Match captchaMatch = Regex.Match(response, "http://registrace\\.libimseti\\.cz/captcha/(\\d+)");
+
+            if (captchaMatch.Success && captchaMatch.Groups.Count == 2)
+            {
+                return new CaptchaToken { Key = int.Parse(captchaMatch.Groups[1].Value) };
+            }
+
+            return null;
+        }
+
+        public static async Task Register(RegistrationData registrationData, CaptchaToken captchaToken, string captchaTyped)
+        {
+            Logger.Instance.Info(string.Format("[{0}] Registering", registrationData.UserName));
+
+            string response = await Connector.Send(
+                request =>
+                {
+                    request.Method = "POST";
+                    request.Host = "registrace.libimseti.cz";
+                    request.KeepAlive = true;
+                    request.Expect = string.Empty;
+                    request.ContentType = "application/x-www-form-urlencoded";
+                    request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
+                },
+                string.Format(
+                "name={0}&pass1={1}&pass2={1}&email={2}&sex={3}&birthDay={4}&birthMonth={5}&birthYear={6}&okres=o3&captcha_val={7}&captcha_key={8}&podminky=on&action=save&referer=",
+                registrationData.UserName,
+                registrationData.Password,
+                registrationData.Email,
+                registrationData.Sex == User.Sex.Male ? "m" : "f",
+                registrationData.BirthDate.Day,
+                registrationData.BirthDate.Month,
+                registrationData.BirthDate.Year,
+                captchaTyped,
+                captchaToken.Key),
+                new[]
+                {
+                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
+                });
+
+            if (!response.Contains(string.Format("e_login={0}&pswdhash", registrationData.UserName)))
+            {
+                Logger.Instance.Error(string.Format("[{0}] Not registered", registrationData.UserName));
+                throw new Exception("Not registered.");
+            }
+
+            Logger.Instance.Info(string.Format("[{0}] Registered", registrationData.UserName));
+        }
+
     }
 }

@@ -1,4 +1,8 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Xml;
 
 namespace LibimSeTi.Core
 {
@@ -8,11 +12,7 @@ namespace LibimSeTi.Core
 
         private Configuration()
         {
-            LibimSeTiHostName = "chat.libimseti.cz";
-            LibimSeTiPort = 80;
-            LibimSeTiEncoding = Encoding.UTF8;
-            Socks5Server = "127.0.0.1";
-            Socks5Port = 9150;
+            Load();
         }
 
         public static Configuration Instance
@@ -37,5 +37,97 @@ namespace LibimSeTi.Core
         public int Socks5Port { get; private set; }
 
         public Encoding LibimSeTiEncoding { get; private set; }
+
+        public IList<BotGroup> BotGroups { get; private set; }
+
+        private string ConfigFilePath { get { return Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "config.xml"); } }
+
+        private void Load()
+        {
+            if (!File.Exists(ConfigFilePath))
+            {
+                return;
+            }
+
+            XmlDocument config = new XmlDocument();
+            config.Load(ConfigFilePath);
+
+            LibimSeTiHostName = config.SelectSingleNode("Configuration/@HostName")?.Value ?? "chat.libimseti.cz";
+            LibimSeTiPort = int.Parse(config.SelectSingleNode("Configuration/@Port")?.Value ?? "80");
+            Socks5Server = config.SelectSingleNode("Configuration/@SocksServer")?.Value ?? "127.0.0.1";
+            Socks5Port = int.Parse(config.SelectSingleNode("Configuration/@SocksPort")?.Value ?? "9150");
+            LibimSeTiEncoding = Encoding.GetEncoding(int.Parse(config.SelectSingleNode("Configuration/@WebResponseEncoding")?.Value ?? "65001"));
+
+            BotGroups = new List<BotGroup>();
+
+            foreach (XmlNode botGroupNode in config.SelectNodes("Configuration/Bots/Group"))
+            {
+                BotGroup botGroup = new BotGroup(botGroupNode.Attributes["Name"].Value);
+
+                foreach (XmlNode botNode in botGroupNode.SelectNodes("Bot"))
+                {
+                    Bot bot = new Bot(botNode.Attributes["UserName"].Value, botNode.Attributes["Password"].Value);
+
+                    botGroup.Bots.Add(bot);
+                }
+
+                BotGroups.Add(botGroup);
+            }
+        }
+
+        public void Save()
+        {
+            XmlDocument config = new XmlDocument();
+            XmlNode root = config.AppendChild(config.CreateElement("Configuration"));
+
+            var attr = config.CreateAttribute("HostName");
+            attr.Value = LibimSeTiHostName;
+            root.Attributes.Append(attr);
+
+            attr = config.CreateAttribute("Port");
+            attr.Value = LibimSeTiPort.ToString();
+            root.Attributes.Append(attr);
+
+            attr = config.CreateAttribute("SocksServer");
+            attr.Value = Socks5Server;
+            root.Attributes.Append(attr);
+
+            attr = config.CreateAttribute("SocksPort");
+            attr.Value = Socks5Port.ToString();
+            root.Attributes.Append(attr);
+
+            attr = config.CreateAttribute("WebResponseEncoding");
+            attr.Value = LibimSeTiEncoding.CodePage.ToString();
+            root.Attributes.Append(attr);
+
+            if (BotGroups != null)
+            {
+                XmlNode botsRoot = root.AppendChild(config.CreateElement("Bots"));
+
+                foreach (BotGroup botGroup in BotGroups)
+                {
+                    XmlNode groupRoot = botsRoot.AppendChild(config.CreateElement("Group"));
+
+                    attr = config.CreateAttribute("Name");
+                    attr.Value = botGroup.Name;
+                    groupRoot.Attributes.Append(attr);
+
+                    foreach (Bot bot in botGroup.Bots)
+                    {
+                        XmlNode botNode = groupRoot.AppendChild(config.CreateElement("Bot"));
+
+                        attr = config.CreateAttribute("UserName");
+                        attr.Value = bot.Username;
+                        botNode.Attributes.Append(attr);
+
+                        attr = config.CreateAttribute("Password");
+                        attr.Value = bot.Password;
+                        botNode.Attributes.Append(attr);
+                    }
+                }
+            }
+
+            config.Save(ConfigFilePath);
+        }
     }
 }

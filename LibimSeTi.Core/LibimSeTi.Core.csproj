@@ -45,8 +45,10 @@
     <Compile Include="Bot.cs" />
     <Compile Include="BotCommands.cs" />
     <Compile Include="BotGroup.cs" />
+    <Compile Include="CaptchaToken.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Connector.cs" />
+    <Compile Include="RegistrationData.cs" />
     <Compile Include="Session.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Model.cs" />
