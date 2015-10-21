@@ -43,7 +43,9 @@
         <TextBox x:Name="passwordBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="543,46,0,0" TextWrapping="Wrap" Text="123456789" VerticalAlignment="Top" Width="60" ToolTip="Password (empty = random)" />
         <CheckBox x:Name="sexBox" Content="M/F" HorizontalAlignment="Left" Margin="416,46,0,0" VerticalAlignment="Top" IsThreeState="True" IsChecked="{x:Null}" ToolTip="Sex (indiferent = random)"/>
         <TextBox x:Name="emailBox" Padding="-3" HorizontalAlignment="Left" Height="13" Margin="456,46,0,0" TextWrapping="Wrap" Text="email@email.com" VerticalAlignment="Top" Width="82" ToolTip="Email (empty = random)" RenderTransformOrigin="-0.378,0.591" />
-        <Button x:Name="registerButton" Content="Create bots" HorizontalAlignment="Left" Margin="462,599,0,0" VerticalAlignment="Top" Width="141" Click="registerButton_Click"/>
+        <Button x:Name="registerButton" Content="Create bots" HorizontalAlignment="Left" Margin="462,599,0,0" VerticalAlignment="Top" Width="76" Click="registerButton_Click"/>
         <Button x:Name="clearGenerate" FontSize="10" Content="X" HorizontalAlignment="Left" Margin="440,67,0,0" VerticalAlignment="Top" Width="14" Height="13" Padding="0,-3,0,0" ToolTip="Generate according pattern" Click="clearGenerate_Click" />
+        <CheckBox x:Name="checkExistence" IsChecked="True" HorizontalAlignment="Left" Margin="416,67,0,0" VerticalAlignment="Top" ToolTip="Check existence of nicks upon addding"/>
+        <CheckBox x:Name="createOneByOne" HorizontalAlignment="Left" Margin="547,599,0,0" VerticalAlignment="Top" ToolTip="Create bots one by one"/>
     </Grid>
 </Window>

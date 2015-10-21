@@ -1,5 +1,7 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,6 +12,39 @@ namespace LibimSeTi.Core
     {
         string Name { get; }
         RegistrationData GetNextIdentity();
+    }
+
+    public class ExistingBotsProvider : IIdentityProvider
+    {
+        public string Name
+        {
+            get
+            {
+                return "Reregistration";
+            }
+        }
+
+        public ExistingBotsProvider(BotGroup botGroup)
+        {
+            _botGroup = botGroup;
+        }
+
+        private BotGroup _botGroup;
+        private int _groupIndex;
+
+        public RegistrationData GetNextIdentity()
+        {
+            Bot currentBot = _botGroup.Bots.Skip(_groupIndex).FirstOrDefault();
+
+            if (currentBot == null)
+            {
+                return null;
+            }
+
+            _groupIndex++;
+
+            return new RegistrationData { UserName = currentBot.Username, Password = currentBot.Password, Messages = currentBot.Messages };
+        }
     }
 
     public class WikiIdentityProvider : IIdentityProvider

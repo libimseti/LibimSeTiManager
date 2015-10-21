@@ -33,8 +33,9 @@ namespace LibimSeTi.Core
         public int LibimSeTiPort { get; private set; }
 
         public string Socks5Server { get; private set; }
-
         public int Socks5Port { get; private set; }
+        public string Socks5User { get; private set; }
+        public string Socks5Password { get; private set; }
 
         public Encoding LibimSeTiEncoding { get; private set; }
 
@@ -56,6 +57,8 @@ namespace LibimSeTi.Core
             LibimSeTiPort = int.Parse(config.SelectSingleNode("Configuration/@Port")?.Value ?? "80");
             Socks5Server = config.SelectSingleNode("Configuration/@SocksServer")?.Value ?? "127.0.0.1";
             Socks5Port = int.Parse(config.SelectSingleNode("Configuration/@SocksPort")?.Value ?? "9150");
+            Socks5User = config.SelectSingleNode("Configuration/@SocksUser")?.Value ?? "user";
+            Socks5Password = config.SelectSingleNode("Configuration/@SocksPassword")?.Value ?? "password";
             LibimSeTiEncoding = Encoding.GetEncoding(int.Parse(config.SelectSingleNode("Configuration/@WebResponseEncoding")?.Value ?? "65001"));
 
             BotGroups = new List<BotGroup>();
@@ -101,6 +104,14 @@ namespace LibimSeTi.Core
 
             attr = config.CreateAttribute("SocksPort");
             attr.Value = Socks5Port.ToString();
+            root.Attributes.Append(attr);
+
+            attr = config.CreateAttribute("SocksUser");
+            attr.Value = Socks5User;
+            root.Attributes.Append(attr);
+
+            attr = config.CreateAttribute("SocksPassword");
+            attr.Value = Socks5Password;
             root.Attributes.Append(attr);
 
             attr = config.CreateAttribute("WebResponseEncoding");

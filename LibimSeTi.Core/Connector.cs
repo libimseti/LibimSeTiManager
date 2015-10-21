@@ -14,8 +14,11 @@ namespace LibimSeTi.Core
 {
     public static class Connector
     {
-        private static readonly Socks5ProxyClient _socksClient
-            = new Socks5ProxyClient(Configuration.Instance.Socks5Server, Configuration.Instance.Socks5Port);
+        private static readonly Socks5ProxyClient _socksClient = new Socks5ProxyClient(
+            Configuration.Instance.Socks5Server,
+            Configuration.Instance.Socks5Port,
+            Configuration.Instance.Socks5User,
+            Configuration.Instance.Socks5Password);
 
         private static IPAddress _ipAddress;
 

@@ -57,6 +57,7 @@ namespace LibimSeTiManager
         private void SetupIdentityProviders()
         {
             identityProviderBox.Items.Add(new WikiIdentityProvider());
+            identityProviderBox.Items.Add(new ExistingBotsProvider(_botGroup));
 
             identityProviderBox.SelectedIndex = 0;
         }
@@ -94,7 +95,7 @@ namespace LibimSeTiManager
 
             string userName = string.Format(patternBox.Text, i);
 
-            User existingUser = await Session.GetUserInfo(userName);
+            User existingUser = checkExistence.IsChecked == true ? await Session.GetUserInfo(userName) : null;
 
             if (existingUser == null)
             {
@@ -166,13 +167,20 @@ namespace LibimSeTiManager
             return pwdBuilder.ToString();
         }
 
-        private void registerButton_Click(object sender, RoutedEventArgs e)
+        private async void registerButton_Click(object sender, RoutedEventArgs e)
         {
             foreach (RegistrationItem registrationItem in registerBox.Items)
             {
+                if (createOneByOne.IsChecked != true)
+                {
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                CreateBot(registrationItem);
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                    CreateBot(registrationItem);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed                
+                }
+                else
+                {
+                    await CreateBot(registrationItem);
+                }
             }
         }
 
@@ -184,6 +192,12 @@ namespace LibimSeTiManager
 
             CaptchaToken captchaToken = await Session.GetRegistrationCaptcha();
 
+            if (captchaToken == null)
+            {
+                Logger.Instance.Error(string.Format("Cannot get captcha for [{0}]", registrationData.UserName));
+                return;
+            }
+
             CaptchaChallenge captchaChallenge = new CaptchaChallenge(captchaToken);
 
             if (_pendingChanllenges.Count > 0)
@@ -193,6 +207,8 @@ namespace LibimSeTiManager
 
             captchaChallenge.ShowActivated = false;
             captchaChallenge.Show();
+
+            captchaChallenge.FocusTextBox();
 
             _pendingChanllenges.Add(captchaChallenge);
 
@@ -248,9 +264,12 @@ namespace LibimSeTiManager
 
                 lock (Configuration.Instance)
                 {
-                    _botGroup.Bots.Add(newBot);
+                    if (!_botGroup.Bots.Any(bot => bot.Username == newBot.Username))
+                    {
+                        _botGroup.Bots.Add(newBot);
 
-                    Configuration.Instance.Save();
+                        Configuration.Instance.Save();
+                    }
                 }
 
                 SetupBots();
@@ -299,12 +318,12 @@ namespace LibimSeTiManager
                 return;
             }
 
-            User existingUser = await Session.GetUserInfo(identity.UserName);
+            User existingUser = checkExistence.IsChecked == true ? await Session.GetUserInfo(identity.UserName) : null;
 
             if (existingUser == null)
             {
-                identity.Password = GetPassword();
-                identity.Email = GetEmail();
+                identity.Password = identity.Password ?? GetPassword();
+                identity.Email = identity.Email ?? GetEmail();
                 identity.BirthDate = new DateTime(rnd.Next(1950, 1980), rnd.Next(1, 12), rnd.Next(1, 28));
                 identity.Sex = GetSex();
 
