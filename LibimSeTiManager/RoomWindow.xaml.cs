@@ -153,25 +153,55 @@ namespace LibimSeTiManager
                     return new TextRoomCommand { Room = textCmd.Room, TextGetter = bot => text };
                 });
 
-            var messageContent = CreateTextActionContent("Message");
-            messageContent.Item2.Text = "2";
-            AddActionButton(messageContent.Item1, new TextRoomCommand
+			var messageContent = CreateTwoTextsActionContent("Message");
+			AddActionButton(messageContent.Item1, new MessageSendCommand
+			{
+				UserNameGetter = bot => messageContent.Item2.Text,
+				MessageGetter = bot => messageContent.Item3.Text },
+				cmd =>
+				{
+					MessageSendCommand messageCmd = (MessageSendCommand)cmd;
+					string userName = messageContent.Item2.Text;
+					string text = messageContent.Item3.Text;
+					return new MessageSendCommand { UserNameGetter = bot => userName, MessageGetter = bot => text };
+				});
+
+			var botMessageContent = CreateTextActionContent("BotMessage");
+			botMessageContent.Item2.Text = "2";
+            AddActionButton(botMessageContent.Item1, new TextRoomCommand
             {
                 Room = _room,
-                TextGetter = bot => bot != null ? bot.Messages.Length >= int.Parse(messageContent.Item2.Text) ? bot.Messages[int.Parse(messageContent.Item2.Text) - 1] : null : string.Format("Message {0}", messageContent.Item2.Text)
+                TextGetter = bot => bot != null ? bot.Messages.Length >= int.Parse(botMessageContent.Item2.Text) ? bot.Messages[int.Parse(botMessageContent.Item2.Text) - 1] : null : string.Format("Message {0}", botMessageContent.Item2.Text)
             },
             cmd =>
             {
                 TextRoomCommand textCmd = (TextRoomCommand)cmd;
 
-                int messageNumber = int.Parse(messageContent.Item2.Text);
+                int messageNumber = int.Parse(botMessageContent.Item2.Text);
 
                 return new TextRoomCommand {
                     Room = textCmd.Room,
                     TextGetter = bot => bot != null ? bot.Messages.Length >= messageNumber ? bot.Messages[messageNumber - 1] : null : string.Format("Message {0}", messageNumber) };
             });
 
-            var pauseContent = CreateTextActionContent("Pause");
+			var botMessageAsMessageContent = CreateTwoTextsActionContent("BotMessage as Message");
+			botMessageAsMessageContent.Item3.Text = "2";
+			AddActionButton(botMessageAsMessageContent.Item1, new MessageSendCommand
+			{
+				UserNameGetter = bot => botMessageAsMessageContent.Item2.Text,
+				MessageGetter = bot => bot != null ? bot.Messages.Length >= int.Parse(botMessageAsMessageContent.Item3.Text) ? bot.Messages[int.Parse(botMessageAsMessageContent.Item3.Text) - 1] : null : string.Format("Message {0}", botMessageAsMessageContent.Item3.Text)
+			},
+			cmd =>
+			{
+				MessageSendCommand messageCmd = (MessageSendCommand)cmd;
+				string userName = botMessageAsMessageContent.Item2.Text;
+				int messageNumber = int.Parse(botMessageAsMessageContent.Item3.Text);
+				return new MessageSendCommand {
+					UserNameGetter = bot => userName,
+					MessageGetter = bot => bot != null ? bot.Messages.Length >= messageNumber ? bot.Messages[messageNumber - 1] : null : string.Format("Message {0}", messageNumber) };
+			});
+
+			var pauseContent = CreateTextActionContent("Pause");
             pauseContent.Item2.Text = "3";
             AddActionButton(pauseContent.Item1, new PauseCommand {
                 PauseAmountGetter = () => int.Parse(pauseContent.Item2.Text) },
@@ -260,7 +290,34 @@ namespace LibimSeTiManager
             }
         }
 
-        private Tuple<StackPanel, TextBox> CreateTextActionContent(string name)
+		private Tuple<StackPanel, TextBox, TextBox> CreateTwoTextsActionContent(string name)
+		{
+			StackPanel panel = new StackPanel();
+			panel.Orientation = Orientation.Horizontal;
+			panel.VerticalAlignment = VerticalAlignment.Bottom;
+			panel.Margin = new Thickness(0, 0, 10, 0);
+
+			TextBlock nameBlock = new TextBlock();
+			nameBlock.Text = name;
+			nameBlock.Margin = new Thickness(0, 0, 5, 0);
+
+			panel.Children.Add(nameBlock);
+
+			TextBox textBox = new TextBox();
+			textBox.MinWidth = 10;
+
+			panel.Children.Add(textBox);
+
+			TextBox textBox2 = new TextBox();
+			textBox2.MinWidth = 10;
+			textBox2.Margin = new Thickness(5, 0, 0, 0);
+
+			panel.Children.Add(textBox2);
+
+			return new Tuple<StackPanel, TextBox, TextBox>(panel, textBox, textBox2);
+		}
+
+		private Tuple<StackPanel, TextBox> CreateTextActionContent(string name)
         {
             StackPanel panel = new StackPanel();
             panel.Orientation = Orientation.Horizontal;

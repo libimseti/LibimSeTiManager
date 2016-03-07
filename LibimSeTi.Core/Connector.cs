@@ -167,7 +167,7 @@ namespace LibimSeTi.Core
             byte[] buffer = new byte[300000];
             List<byte> requestBytes = new List<byte>();
 
-            socket.ReceiveTimeout = 100;
+            socket.ReceiveTimeout = 1000;
 
             int read;
 

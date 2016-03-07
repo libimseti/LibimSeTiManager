@@ -169,7 +169,7 @@ namespace LibimSeTiManager
 
         private async void registerButton_Click(object sender, RoutedEventArgs e)
         {
-            foreach (RegistrationItem registrationItem in registerBox.Items)
+            foreach (RegistrationItem registrationItem in registerBox.Items.OfType<RegistrationItem>().ToArray())
             {
                 if (createOneByOne.IsChecked != true)
                 {

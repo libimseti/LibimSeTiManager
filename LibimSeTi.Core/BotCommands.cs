@@ -140,6 +140,45 @@ namespace LibimSeTi.Core
         }
     }
 
+	public class MessageSendCommand : BotCommand
+	{
+		public Func<Bot, string> UserNameGetter { get; set; }
+		public Func<Bot, string> MessageGetter { get; set; }
+
+		protected override string IntCanDo(Bot bot)
+		{
+			if (string.IsNullOrEmpty(UserNameGetter(bot)))
+			{
+				return "No username specified.";
+			}
+			if (string.IsNullOrEmpty(MessageGetter(bot)))
+			{
+				return "No message specified";
+			}
+			if (!bot.Session.IsLoggedOn)
+			{
+				return string.Format("[{0}] Not logged on", bot.Username);
+			}
+
+			return null;
+		}
+
+		public async override Task Do(Bot bot)
+		{
+			await bot.Session.SendMessage(UserNameGetter(bot), MessageGetter(bot));
+		}
+
+		public override string Header
+		{
+			get
+			{
+				return string.Format("Message to [{0}] >> {1}",
+					UserNameGetter != null ? UserNameGetter(null) : "N/A",
+					MessageGetter != null ? MessageGetter(null) : "N/A");
+			}
+		}
+	}
+
     public class TextRoomCommand : BotCommand
     {
         public Room Room { get; set; }

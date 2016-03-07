@@ -296,14 +296,46 @@ namespace LibimSeTi.Core
                 HttpUtility.UrlEncode(text)),
                 new[]
                 {
-                new Tuple<string, string>("POST / ", "POST /room.py "),
-                new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
+					new Tuple<string, string>("POST / ", "POST /room.py "),
+					new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
                 });
 
             Logger.Instance.Info(string.Format("[{0}] [{1}] text sent", _bot.Username, room.Name));
         }
 
-        public static async Task<Room[]> FindAllRooms()
+		public async Task SendMessage(string username, string text)
+		{
+			Logger.Instance.Info(string.Format("[{0}] >> {1} >> {2}", _bot.Username, username, text));
+
+			await Connector.Send(
+				request =>
+				{
+					request.Method = "POST";
+					request.Host = "vzkazy.libimseti.cz";
+					request.KeepAlive = true;
+					request.Expect = string.Empty;
+					request.ContentType = "application/x-www-form-urlencoded";
+					request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
+					request.CookieContainer = new CookieContainer();
+					request.CookieContainer.Add(new Cookie("hashId", _hashId, "/", ".libimseti.cz"));
+					request.CookieContainer.Add(new Cookie("id_user", _userId, "/", ".libimseti.cz"));
+					request.CookieContainer.Add(new Cookie("uid", _uid, "/", ".libimseti.cz"));
+				},
+				string.Format(
+				"token={0}&username={1}&message={2}",
+				_logonToken,
+				HttpUtility.UrlEncode(username),
+				HttpUtility.UrlEncode(text)),
+				new[]
+				{
+					new Tuple<string, string>("POST / ", string.Format("POST /zpravy/{0}?msg=sent ", HttpUtility.UrlEncode(username))),
+					new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
+				});
+
+			Logger.Instance.Info(string.Format("[{0}] message sent", _bot.Username));
+		}
+
+		public static async Task<Room[]> FindAllRooms()
         {
             return await Task.Run(() =>
             {
