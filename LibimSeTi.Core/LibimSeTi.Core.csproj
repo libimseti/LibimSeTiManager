@@ -48,6 +48,7 @@
     <Compile Include="CaptchaToken.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Connector.cs" />
+    <Compile Include="HttpWebRequestExtensions.cs" />
     <Compile Include="IdentityProviders.cs" />
     <Compile Include="RegistrationData.cs" />
     <Compile Include="Session.cs" />

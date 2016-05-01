@@ -110,8 +110,8 @@ namespace LibimSeTiManager
             _actionsModeButton.Foreground = Brushes.White;
             _actionsModeButton.Checked += (s, e) => { _actionsModeButton.Content = " All at once "; e.Handled = true; };
             _actionsModeButton.Unchecked += (s, e) => { _actionsModeButton.Content = " Bot by bot "; e.Handled = true; };
-            _actionsModeButton.IsChecked = true;
-            _actionsModeButton.IsChecked = false;
+			_actionsModeButton.IsChecked = true;
+			_actionsModeButton.IsChecked = false;
 
             panel.Children.Add(_actionsModeButton);
 
@@ -124,7 +124,6 @@ namespace LibimSeTiManager
 
             actionsPanel.Children.Add(Helper.CreateHeaderButton("Actions"));
 
-
             _isComposingButton = new ToggleButton();
             _isComposingButton.Margin = new Thickness(2, 2, 0, 0);
             _isComposingButton.Background = Brushes.Black;
@@ -132,9 +131,10 @@ namespace LibimSeTiManager
             _isComposingButton.Checked += (s, e) => { _isComposingButton.Content = GetComposingButtonContent(" Composing mode "); };
             _isComposingButton.Unchecked += (s, e) => { _isComposingButton.Content = GetComposingButtonContent(" Direct mode "); };
             _isComposingButton.IsChecked = true;
-            _isComposingButton.IsChecked = false;
+			_isComposingButton.IsChecked = false;
+			_isComposingButton.IsChecked = true;
 
-            actionsPanel.Children.Add(_isComposingButton);
+			actionsPanel.Children.Add(_isComposingButton);
 
             AddActionButton("Logon", new LogonCommand());
             AddActionButton("Enter", new EnterRoomCommand { Room = _room });
@@ -166,12 +166,17 @@ namespace LibimSeTiManager
 					return new MessageSendCommand { UserNameGetter = bot => userName, MessageGetter = bot => text };
 				});
 
-			var botMessageContent = CreateTextActionContent("BotMessage");
+			var botMessageContent = CreateTwoTextsActionContent("BotMessage (optional nick)");
 			botMessageContent.Item2.Text = "2";
             AddActionButton(botMessageContent.Item1, new TextRoomCommand
             {
                 Room = _room,
-                TextGetter = bot => bot != null ? bot.Messages.Length >= int.Parse(botMessageContent.Item2.Text) ? bot.Messages[int.Parse(botMessageContent.Item2.Text) - 1] : null : string.Format("Message {0}", botMessageContent.Item2.Text)
+                TextGetter = bot => bot != null ? bot.Messages.Length >= int.Parse(botMessageContent.Item2.Text) ?
+					((string.IsNullOrWhiteSpace(botMessageContent.Item3.Text)? string.Empty : string.Format("/m {0} ", botMessageContent.Item3.Text)) + bot.Messages[int.Parse(botMessageContent.Item2.Text) - 1])
+					:
+					null
+					:
+					string.Format("Message {0} {1}", botMessageContent.Item3.Text, botMessageContent.Item2.Text)
             },
             cmd =>
             {
@@ -179,9 +184,16 @@ namespace LibimSeTiManager
 
                 int messageNumber = int.Parse(botMessageContent.Item2.Text);
 
-                return new TextRoomCommand {
-                    Room = textCmd.Room,
-                    TextGetter = bot => bot != null ? bot.Messages.Length >= messageNumber ? bot.Messages[messageNumber - 1] : null : string.Format("Message {0}", messageNumber) };
+				return new TextRoomCommand
+				{
+					Room = textCmd.Room,
+					TextGetter = bot => bot != null ? bot.Messages.Length >= int.Parse(botMessageContent.Item2.Text) ?
+					((string.IsNullOrWhiteSpace(botMessageContent.Item3.Text) ? string.Empty : string.Format("/m {0} ", botMessageContent.Item3.Text)) + bot.Messages[int.Parse(botMessageContent.Item2.Text) - 1])
+					:
+					null
+					:
+					string.Format("Message {0} {1}", botMessageContent.Item3.Text, botMessageContent.Item2.Text)
+				};
             });
 
 			var botMessageAsMessageContent = CreateTwoTextsActionContent("BotMessage as Message");
@@ -215,7 +227,7 @@ namespace LibimSeTiManager
                 });
 
             Button composedActionButton = new Button();
-            composedActionButton.Content = "Composed action";
+            composedActionButton.Content = "Run composed action";
             composedActionButton.Margin = new Thickness(2, 2, 0, 0);
 
             composedActionButton.Click += (s, e) =>
@@ -224,7 +236,20 @@ namespace LibimSeTiManager
             };
 
             actionsPanel.Children.Add(composedActionButton);
-        }
+
+			Button cancelActionButton = new Button();
+			cancelActionButton.Content = "Cancel";
+			cancelActionButton.Margin = new Thickness(2, 2, 0, 0);
+
+			cancelActionButton.Click += (s, e) =>
+			{
+				_cancel = true;
+			};
+
+			actionsPanel.Children.Add(cancelActionButton);
+		}
+
+		private bool _cancel;
 
         private async void RunComposedAction()
         {
@@ -266,6 +291,11 @@ namespace LibimSeTiManager
                     {
                         Logger.Instance.Error(string.Format("Command {0} cannot be waited, bailing out", command.Header));
                     }
+
+					if (_cancel)
+					{
+						break;
+					}
                 }
             }
             else
@@ -285,10 +315,22 @@ namespace LibimSeTiManager
                                 Logger.Instance.Error(string.Format("[{0}] command {1} failed", assignedBot.Username, command.Header));
                             }
                         }
+
+						if (_cancel)
+						{
+							break;
+						}
                     }
+
+					if (_cancel)
+					{
+						break;
+					}
                 }
             }
-        }
+
+			_cancel = false;
+		}
 
 		private Tuple<StackPanel, TextBox, TextBox> CreateTwoTextsActionContent(string name)
 		{

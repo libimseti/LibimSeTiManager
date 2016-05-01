@@ -228,5 +228,10 @@ namespace LibimSeTiManager
             _model.RetrieveAllRooms();
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         }
-    }
+
+		private void UseSocksClick(object sender, RoutedEventArgs e)
+		{
+			Connector.UseSocks = sockToggleButton.IsChecked == true;
+		}
+	}
 }

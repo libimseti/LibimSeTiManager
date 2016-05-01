@@ -20,10 +20,11 @@ namespace LibimSeTi.Core
             Configuration.Instance.Socks5User,
             Configuration.Instance.Socks5Password);
 
+		public static bool UseSocks { private get; set; } = true;
+
         private static IPAddress _ipAddress;
 
-        public static async Task<string> Send(Action<HttpWebRequest> requestSetter, string requestContent,
-            Tuple<string, string>[] requestReplacements)
+        public static async Task<string> Send(string resource, Action<HttpWebRequest> requestSetter, string requestContent)
         {
             int port = 300;
 
@@ -34,18 +35,18 @@ namespace LibimSeTi.Core
                     string response;
                     do
                     {
-                        HttpWebRequest request = CreateRequest(port);
+						HttpWebRequest request = CreateSocksOriginalRequest(resource, port);
 
                         requestSetter(request);
 
-                        response = Forward(
-                            request,
-                            requestContent != null ? Encoding.ASCII.GetBytes(requestContent) : null,
-                            port,
-                            requestReplacements,
-                            _socksClient);
+						response = Forward(
+							request,
+							resource,
+							requestContent != null ? Encoding.ASCII.GetBytes(requestContent) : null,
+							port,
+							_socksClient);
 
-                        attempt++;
+						attempt++;
                     } while (string.IsNullOrEmpty(response) && attempt < 5);
 
                     return response;
@@ -61,7 +62,12 @@ namespace LibimSeTi.Core
 
                 do
                 {
-                    _ipAddress = await GetPublicIP();
+					try
+					{
+						_ipAddress = await GetPublicIP();
+					}
+					catch { };
+
                     attempt++;
                 }
                 while (_ipAddress == null);
@@ -100,59 +106,67 @@ namespace LibimSeTi.Core
         }
 
 
-        private static HttpWebRequest CreateRequest(int port)
+        private static HttpWebRequest CreateSocksOriginalRequest(string resource, int port)
         {
-            return WebRequest.CreateHttp(string.Format("http://localhost:{0}", port));
+            return WebRequest.CreateHttp(string.Format("http://localhost:{0}", port, resource));
         }
 
-        private static string Forward(HttpWebRequest request, byte[] requestContent, int localPort,
-            Tuple<string, string>[] requestReplacements, Socks5ProxyClient socksClient)
+        private static string Forward(HttpWebRequest request, string resource, byte[] requestContent, int localPort,
+            Socks5ProxyClient socksClient)
         {
-            if (requestContent != null)
-            {
-                request.ContentLength = requestContent.Length;
-            }
+			// uncomment to debug request text
+			//if (requestContent != null)
+			//{
+			//	request.ContentLength = requestContent.Length;
+			//}
 
-            byte[] requestBytes = GetRequestContent(request, requestContent, localPort);
+			//byte[] requestBytes = GetRequestContent(request, requestContent, localPort);
 
-            string requestString = Encoding.ASCII.GetString(requestBytes);
+			//string requestString = Encoding.ASCII.GetString(requestBytes);
 
-            if (requestReplacements != null)
-            {
-                foreach (var replacement in requestReplacements)
-                {
-                    requestString = requestString.Replace(replacement.Item1, replacement.Item2);
-                }
-            }
+			//if (requestReplacements != null)
+			//{
+			//	foreach (var replacement in requestReplacements)
+			//	{
+			//		requestString = requestString.Replace(replacement.Item1, replacement.Item2);
+			//	}
+			//}
 
-            TcpClient forwarder = ConnectToLibimSeTi(socksClient);
-            forwarder.Client.Send(Encoding.ASCII.GetBytes(requestString));
-            byte[] responseBytes = ReadToEnd(forwarder.Client);
-            forwarder.Close();
+			string requestString2 = request.GetRequestString(resource, requestContent);
 
-            return Configuration.Instance.LibimSeTiEncoding.GetString(responseBytes);
+			using (TcpClient libimsetiClient = ConnectToLibimSeTi(socksClient))
+			{
+				libimsetiClient.Client.Send(Encoding.ASCII.GetBytes(requestString2));
+
+				byte[] responseBytes = ReadToEnd(libimsetiClient.Client);
+
+				return Configuration.Instance.LibimSeTiEncoding.GetString(responseBytes);
+			}
         }
 
-        private static byte[] GetRequestContent(HttpWebRequest request, byte[] requestContent, int localPort)
-        {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, localPort);
-            listener.Start();
 
-            if (requestContent != null)
-            {
-                Stream postStream = request.GetRequestStream();
-                postStream.Write(requestContent, 0, requestContent.Length);
-                postStream.Flush();
-                postStream.Close();
-            }
+		private static TcpListener _listener;
+
+		private static byte[] GetRequestContent(HttpWebRequest request, byte[] requestContent, int localPort)
+        {
+			if (_listener == null)
+			{
+				_listener = new TcpListener(IPAddress.Loopback, localPort);
+				_listener.Start();
+			}
+
+			if (requestContent != null)
+			{
+				Stream postStream = request.GetRequestStream();
+				postStream.Write(requestContent, 0, requestContent.Length);
+				postStream.Close();
+			}
 
             request.GetResponseAsync();
 
-            var localSocket = listener.AcceptSocket();
+            var localSocket = _listener.AcceptSocket();
             byte[] requestBytes = ReadToEnd(localSocket);
             localSocket.Close();
-
-            listener.Stop();
 
             if (requestContent != null && !Encoding.ASCII.GetString(requestBytes).EndsWith(Encoding.ASCII.GetString(requestContent)))
             {
@@ -167,7 +181,9 @@ namespace LibimSeTi.Core
             byte[] buffer = new byte[300000];
             List<byte> requestBytes = new List<byte>();
 
-            socket.ReceiveTimeout = 1000;
+            socket.ReceiveTimeout = 10000;
+
+			DateTime start = DateTime.Now;
 
             int read;
 
@@ -178,50 +194,34 @@ namespace LibimSeTi.Core
 
                     if (read > 0)
                     {
-                        for (int i = 0; i < read; i++)
-                        {
-                            requestBytes.Add(buffer[i]);
-                        }
+						for (int i = 0; i < read; i++)
+						{
+							requestBytes.Add(buffer[i]);
+						}
 
-                        Thread.Sleep(100);
-                    }
+						Thread.Sleep(100);
+					}
 
-                } while (read > 0);
+					if ((DateTime.Now - start).TotalMilliseconds > socket.ReceiveTimeout)
+					{
+						throw new SocketException();
+					}
+
+                } while (read > 0 || requestBytes.Count == 0);
             }
-            catch (SocketException)
+            catch (SocketException e)
             {
             }
 
             return requestBytes.ToArray();
         }
 
-        public static TcpClient ConnectToLibimSeTi(Socks5ProxyClient socksClient)
+        private static TcpClient ConnectToLibimSeTi(Socks5ProxyClient socksClient)
         {
-            return socksClient.CreateConnection(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort);
-            //return new TcpClient(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort);
+            return UseSocks ?
+				socksClient.CreateConnection(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort)
+				:
+				new TcpClient(Configuration.Instance.LibimSeTiHostName, Configuration.Instance.LibimSeTiPort);
         }
-
-        //public static string Request(string content)
-        //{
-        //    var tcpClient = ConnectToLibimSeTi();
-
-        //    tcpClient.Client.Send(Encoding.ASCII.GetBytes(content));
-
-        //    byte[] buffer = new byte[1000];
-
-        //    int read;
-        //    string text = string.Empty;
-
-        //    do
-        //    {
-        //        read = tcpClient.Client.Receive(buffer);
-
-        //        text += Configuration.Instance.LibimSeTiEncoding.GetString(buffer, 0, read);
-        //    } while (read > 0);
-
-        //    tcpClient.Close();
-        //    return text;
-        //}
-
     }
 }

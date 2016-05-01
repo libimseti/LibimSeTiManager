@@ -9,6 +9,7 @@
     <Grid>
         <Menu x:Name="menu" HorizontalAlignment="Left" Height="27" VerticalAlignment="Top" Width="933">
             <Button Content="Refresh rooms" Click="Button_Click" />
+            <ToggleButton x:Name="sockToggleButton" Content="Use sock" IsChecked="True" Click="UseSocksClick" />
             <Button Content="Log" Click="ShowLog_Click"/>
         </Menu>
         <StackPanel Orientation="Vertical" Margin="10,30,0,0" HorizontalAlignment="Stretch">

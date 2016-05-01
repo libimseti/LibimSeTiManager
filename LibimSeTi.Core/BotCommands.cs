@@ -216,7 +216,12 @@ namespace LibimSeTi.Core
 
         public async override Task Do(Bot bot)
         {
-            await bot.Session.SendText(Room, TextGetter(bot));
+			if (!bot.Session.RoomsEntered.Contains(Room))
+			{
+				return;
+			}
+
+			await bot.Session.SendText(Room, TextGetter(bot));
         }
 
         public override string Header

@@ -46,7 +46,8 @@ namespace LibimSeTi.Core
             Logger.Instance.Info(string.Format("[{0}] Logging on", _bot.Username));
 
             string response = await Connector.Send(
-                request =>
+				"login",
+				request =>
                 {
                     request.Method = "POST";
                     request.Host = "libimseti.cz";
@@ -58,12 +59,7 @@ namespace LibimSeTi.Core
                 string.Format(
                 "e_login={0}&e_pass={1}&a=l&urlCrc=49a355a5b043ab8ccd316747cff2c735&targetUrl=http%3A%2F%2Fchat.libimseti.cz%2Findex.py%3F",
                 _bot.Username,
-                _bot.Password),
-                new[]
-                {
-                new Tuple<string, string>("POST / ", "POST /login "),
-                new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                _bot.Password));
 
             var tokenMatch = Regex.Match(response, "token=([a-fA-F0-9]+)");
 
@@ -107,7 +103,8 @@ namespace LibimSeTi.Core
             Logger.Instance.Info(string.Format("[{0}] Entering room {1}", _bot.Username, room.Name));
 
             string response = await Connector.Send(
-                request => {
+				string.Format("room.py?act=enter&room_ID={0}&token={1}", room.Id, _logonToken),
+				request => {
                     request.Method = "GET";
                     request.Host = "chat.libimseti.cz";
                     request.KeepAlive = true;
@@ -118,13 +115,7 @@ namespace LibimSeTi.Core
                     request.CookieContainer.Add(new Cookie("id_user", _userId, "/", ".libimseti.cz"));
                     request.CookieContainer.Add(new Cookie("uid", _uid, "/", ".libimseti.cz"));
                 },
-                null,
-                new[]
-                {
-                    new Tuple<string, string>("GET / ",
-                        string.Format("GET /room.py?act=enter&room_ID={0}&token={1} ", room.Id, _logonToken)),
-                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                null);
 
             if (!response.Contains("&act=text&token="))
             {
@@ -152,7 +143,8 @@ namespace LibimSeTi.Core
             Logger.Instance.Info(string.Format("[{0}] Leaving room {1}", _bot.Username, room.Name));
 
             string response = await Connector.Send(
-                request => {
+				string.Format("room.py?act=leave&room_ID={0}&token={1} ", room.Id, _logonToken),
+				request => {
                     request.Method = "GET";
                     request.Host = "chat.libimseti.cz";
                     request.KeepAlive = true;
@@ -163,13 +155,7 @@ namespace LibimSeTi.Core
                     request.CookieContainer.Add(new Cookie("id_user", _userId, "/", ".libimseti.cz"));
                     request.CookieContainer.Add(new Cookie("uid", _uid, "/", ".libimseti.cz"));
                 },
-                null,
-                new[]
-                {
-                    new Tuple<string, string>("GET / ",
-                        string.Format("GET /room.py?act=leave&room_ID={0}&token={1} ", room.Id, _logonToken)),
-                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                null);
 
             if (response.Contains("&act=text&token="))
             {
@@ -186,7 +172,9 @@ namespace LibimSeTi.Core
         {
             Logger.Instance.Info(string.Format("[{0}] Reading room {1}", _bot.Username, room.Name));
 
-            List<Room.Event> content = new List<Room.Event>();
+			room.LastRead = DateTime.Now;
+
+			List<Room.Event> content = new List<Room.Event>();
             int attemptCounter = 0;
 
             do
@@ -197,7 +185,8 @@ namespace LibimSeTi.Core
                 }
 
                 string response = await Connector.Send(
-                    request =>
+					string.Format("room.py?act=read&room_ID={0}&token={1} ", room.Id, _logonToken),
+					request =>
                     {
                         request.Method = "GET";
                         request.Host = "chat.libimseti.cz";
@@ -209,13 +198,7 @@ namespace LibimSeTi.Core
                         request.CookieContainer.Add(new Cookie("id_user", _userId, "/", ".libimseti.cz"));
                         request.CookieContainer.Add(new Cookie("uid", _uid, "/", ".libimseti.cz"));
                     },
-                    null,
-                    new[]
-                    {
-                    new Tuple<string, string>("GET / ",
-                        string.Format("GET /room.py?act=read&room_ID={0}&token={1} ", room.Id, _logonToken)),
-                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                    });
+                    null);
 
                 foreach (string line in response.Split(new[] { "\n" }, StringSplitOptions.None))
                 {
@@ -262,7 +245,6 @@ namespace LibimSeTi.Core
             if (content.Count > 0)
             {
                 room.Content = content.ToArray();
-                room.LastRead = DateTime.Now;
             }
             else
             {
@@ -276,7 +258,8 @@ namespace LibimSeTi.Core
             Logger.Instance.Info(string.Format("[{0}] [{1}] >> {2}", _bot.Username, room.Name, text));
 
             await Connector.Send(
-                request =>
+				"room.py",
+				request =>
                 {
                     request.Method = "POST";
                     request.Host = "chat.libimseti.cz";
@@ -293,12 +276,7 @@ namespace LibimSeTi.Core
                 "token={0}&act=text&room_ID={1}&mini=0&out=1&friend_ID_list=&keep=1&text={2}",
                 _logonToken,
                 room.Id,
-                HttpUtility.UrlEncode(text)),
-                new[]
-                {
-					new Tuple<string, string>("POST / ", "POST /room.py "),
-					new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                HttpUtility.UrlEncode(text)));
 
             Logger.Instance.Info(string.Format("[{0}] [{1}] text sent", _bot.Username, room.Name));
         }
@@ -308,6 +286,7 @@ namespace LibimSeTi.Core
 			Logger.Instance.Info(string.Format("[{0}] >> {1} >> {2}", _bot.Username, username, text));
 
 			await Connector.Send(
+				string.Format("zpravy/{0}?msg=sent", HttpUtility.UrlEncode(username)),
 				request =>
 				{
 					request.Method = "POST";
@@ -325,12 +304,7 @@ namespace LibimSeTi.Core
 				"token={0}&username={1}&message={2}",
 				_logonToken,
 				HttpUtility.UrlEncode(username),
-				HttpUtility.UrlEncode(text)),
-				new[]
-				{
-					new Tuple<string, string>("POST / ", string.Format("POST /zpravy/{0}?msg=sent ", HttpUtility.UrlEncode(username))),
-					new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-				});
+				HttpUtility.UrlEncode(text)));
 
 			Logger.Instance.Info(string.Format("[{0}] message sent", _bot.Username));
 		}
@@ -413,20 +387,15 @@ namespace LibimSeTi.Core
             Logger.Instance.Info(string.Format("Reading user info for [{0}]", username));
 
             string response = await Connector.Send(
-                request => {
+				string.Format("user/info?callback=jQuery1705234449510280471_1445100660724&username={0} ", username),
+				request => {
                     request.Method = "GET";
                     request.Host = "ajaxapi.libimseti.cz";
                     request.KeepAlive = true;
                     request.Expect = string.Empty;
                     request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
                 },
-                null,
-                new[]
-                {
-                    new Tuple<string, string>("GET / ",
-                        string.Format("GET /user/info?callback=jQuery1705234449510280471_1445100660724&username={0} ", username)),
-                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                null);
 
             int? userId;
 
@@ -478,6 +447,7 @@ namespace LibimSeTi.Core
             Logger.Instance.Info("Getting registration captcha");
 
             string response = await Connector.Send(
+				string.Empty,
                 request => {
                     request.Method = "GET";
                     request.Host = "registrace.libimseti.cz";
@@ -485,11 +455,7 @@ namespace LibimSeTi.Core
                     request.Expect = string.Empty;
                     request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)";
                 },
-                null,
-                new[]
-                {
-                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                null);
 
             Match captchaMatch = Regex.Match(response, "http://registrace\\.libimseti\\.cz/captcha/(\\d+)");
 
@@ -506,6 +472,7 @@ namespace LibimSeTi.Core
             Logger.Instance.Info(string.Format("[{0}] Registering", registrationData.UserName));
 
             string response = await Connector.Send(
+				string.Empty,
                 request =>
                 {
                     request.Method = "POST";
@@ -525,11 +492,7 @@ namespace LibimSeTi.Core
                 registrationData.BirthDate.Month,
                 registrationData.BirthDate.Year,
                 captchaTyped,
-                captchaToken.Key),
-                new[]
-                {
-                    new Tuple<string, string>("Expect: 100-continue\r\n", string.Empty)
-                });
+                captchaToken.Key));
 
             if (!response.Contains(string.Format("e_login={0}&pswdhash", registrationData.UserName)))
             {
